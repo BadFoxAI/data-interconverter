@@ -145,7 +145,7 @@
         customBitDepthGroup: document.getElementById('customBitDepthGroup'), 
         customBitDepthInput: document.getElementById('customBitDepthInput'), 
         applyCustomBitDepthButton: document.getElementById('applyCustomBitDepthButton'),
-        customBitDepthMinMaxLabel: document.getElementById('customBitDepthMinMaxLabel'), // Added for dynamic label
+        customBitDepthMinMaxLabel: document.getElementById('customBitDepthMinMaxLabel'),
         sequenceBitDepthDisplay: document.getElementById('sequenceBitDepthDisplay'),
         sequenceInput: document.getElementById('sequenceInput'),
         sequenceCanonicalLengthDisplay: document.getElementById('sequenceCanonicalLengthDisplay'),
@@ -158,7 +158,7 @@
 
     let appStateWasm;
     let sourceOfChange = 'initialLoad';
-    let lastDirectInputSequence = null; // Will store array of BigInts
+    let lastDirectInputSequence = null; 
     let currentActiveBitDepth = CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH;
 
     function showErrorModal(title, message) { dom.errorModal.title.textContent = title; dom.errorModal.message.textContent = message; dom.errorModal.el.style.display = 'flex'; }
@@ -174,7 +174,7 @@
         dom.sequenceBitDepthDisplay.textContent = bitDepth;
         const maxValBigInt = (2n ** BigInt(bitDepth)) - 1n;
         dom.sequenceInput.placeholder = `e.g., ${maxValBigInt}, ${maxValBigInt > 0n ? maxValBigInt / 2n : 0n}, ... (0 to ${maxValBigInt})`;
-        dom.customBitDepthInput.max = CONFIG.MAX_BIT_DEPTH; // Ensure input max attribute matches
+        dom.customBitDepthInput.max = CONFIG.MAX_BIT_DEPTH; 
         dom.customBitDepthMinMaxLabel.textContent = `${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}`;
     }
     
@@ -191,7 +191,7 @@
     async function renderCanonicalIndex() {
         if (sourceOfChange !== 'indexInput') {
             try {
-                const indexJsBigInt = await appStateWasm.getCanonicalIndex();
+                const indexJsBigInt = await appStateWasm.getCanonicalIndex(); 
                 dom.canonicalIndexInput.value = indexJsBigInt.toString();
             } catch (e) { console.error("Error getCI:", e); dom.canonicalIndexInput.value = 'Error';}
         }
@@ -207,11 +207,11 @@
 
     async function renderSequence() {
         dom.sequenceBitDepthDisplay.textContent = currentActiveBitDepth; 
-        let sequenceForTextarea;
+        let sequenceForTextarea; 
         let displayedLength;
 
         if (sourceOfChange === 'sequenceInput' || sourceOfChange === 'rawBinaryUpload') {
-            sequenceForTextarea = lastDirectInputSequence ? [...lastDirectInputSequence] : [];
+            sequenceForTextarea = lastDirectInputSequence ? [...lastDirectInputSequence] : []; 
             displayedLength = sequenceForTextarea.length;
         } else {
             try {
@@ -219,8 +219,8 @@
                 sequenceForTextarea = await appStateWasm.getSequenceRepresentation(displayedLength, currentActiveBitDepth);
             } catch (e) {
                 showErrorModal("Sequence Render Error", e.message);
-                sequenceForTextarea = [BigInt(`0`)]; // Default to 0 if error
-                displayedLength = 1;
+                sequenceForTextarea = [0n]; // Default to array with 0 BigInt if error
+                displayedLength = sequenceForTextarea.length; // Adjust length accordingly
                 console.error("Error renderSeq:", e);
             }
         }
@@ -246,17 +246,17 @@
         const newIndex = safeParseBigInt(dom.canonicalIndexInput.value);
         if (newIndex !== null) {
             try {
-                const currentWasmIndex = await appStateWasm.getCanonicalIndex();
-                if (newIndex !== currentWasmIndex) {
-                    await appStateWasm.setCanonicalIndex(newIndex);
-                    sourceOfChange = 'indexInput';
-                    lastDirectInputSequence = null;
-                    updateAllViews();
-                }
+                // const currentWasmIndex = await appStateWasm.getCanonicalIndex(); // Not needed if always setting
+                await appStateWasm.setCanonicalIndex(newIndex); // Directly set if different logic is not required
+                sourceOfChange = 'indexInput';
+                lastDirectInputSequence = null;
+                updateAllViews();
             } catch (e) { showErrorModal("Input Error", `Set CI: ${e.message}`); }
         } else if (dom.canonicalIndexInput.value.trim() !== "") {
             showErrorModal("Input Error", "Invalid BigInt in Canonical Index.");
-            dom.canonicalIndexInput.value = (await appStateWasm.getCanonicalIndex()).toString();
+            try { // Await if getCanonicalIndex is async
+              dom.canonicalIndexInput.value = (await appStateWasm.getCanonicalIndex()).toString();
+            } catch(e) { dom.canonicalIndexInput.value = "Error"; }
         }
     }, CONFIG.DEBOUNCE_DELAY_INPUT));
 
@@ -304,7 +304,7 @@
         }
         if (!matchedPreset) {
             if (dom.sequenceBitDepthSelect.value !== "custom") {
-                 dom.sequenceBitDepthSelect.value = "custom"; // Ensure "custom" option is selected
+                 dom.sequenceBitDepthSelect.value = "custom";
             }
         }
         handleBitDepthChange(customDepth);
@@ -325,8 +325,8 @@
             if (sequenceStr !== "") {
                 parsedSequence = sequenceStr.split(',').map(s => s.trim()).filter(s => s !== "").map(sVal => {
                     try {
-                        const cleaned Sval = sVal.replace(/[^0-9]/g, '');
-                        if (cleanedSval === '') throw new Error(`Empty value after cleaning non-digits from '${sVal}'`);
+                        const cleanedSval = sVal.replace(/[^0-9]/g, '');
+                        if (cleanedSval === '') throw new Error(`Empty value found in sequence after cleaning non-digits from '${sVal}'.`);
                         const numBigInt = BigInt(cleanedSval);
                         if (numBigInt < 0n || numBigInt > maxValBigInt) {
                             throw new Error(`Value '${sVal}' (parsed as ${numBigInt}) is out of range 0 to ${maxValBigInt} for ${currentActiveBitDepth}-bit elements.`);
@@ -347,50 +347,55 @@
     }, CONFIG.DEBOUNCE_DELAY_TEXT_AREA));
 
     dom.saveSequenceRawBinaryButton.addEventListener('click', async () => {
-        const currentMinLength = await appStateWasm.calculateMinSequenceLength(currentActiveBitDepth);
-        const sequenceToSave = await appStateWasm.getSequenceRepresentation(currentMinLength, currentActiveBitDepth);
+        try {
+            const currentMinLength = await appStateWasm.calculateMinSequenceLength(currentActiveBitDepth);
+            const sequenceToSave = await appStateWasm.getSequenceRepresentation(currentMinLength, currentActiveBitDepth);
 
-        const currentCanonicalIndex = await appStateWasm.getCanonicalIndex();
-        if ((!sequenceToSave || sequenceToSave.length === 0) && currentCanonicalIndex !== 0n) {
-            showErrorModal("Save Error", "Cannot save empty sequence for a non-zero index."); return;
-        }
-        
-        const numElements = sequenceToSave.length;
-        const totalBits = numElements * currentActiveBitDepth;
-        const totalBytes = Math.ceil(totalBits / 8);
+            const currentCanonicalIndex = await appStateWasm.getCanonicalIndex();
+            if ((!sequenceToSave || sequenceToSave.length === 0) && currentCanonicalIndex !== 0n) {
+                showErrorModal("Save Error", "Cannot save empty sequence for a non-zero index."); return;
+            }
+            
+            const numElements = sequenceToSave.length;
+            const totalBits = numElements * currentActiveBitDepth;
+            const totalBytes = Math.ceil(totalBits / 8);
 
-        showLoader("Generating Raw Binary File...", true);
-        setTimeout(() => {
-            try {
-                const buffer = new ArrayBuffer(totalBytes);
-                const byteArray = new Uint8Array(buffer);
-                let bitBuffer = 0n;
-                let bitBufferLen = 0;
-                let byteIndex = 0;
+            showLoader("Generating Raw Binary File...", true);
+            // setTimeout to allow UI to update with loader before blocking for byte array creation
+            await new Promise(resolve => setTimeout(resolve, 10)); 
 
-                for (const valBigInt of sequenceToSave) {
-                    bitBuffer = (bitBuffer << BigInt(currentActiveBitDepth)) | valBigInt;
-                    bitBufferLen += currentActiveBitDepth;
+            const buffer = new ArrayBuffer(totalBytes);
+            const byteArray = new Uint8Array(buffer);
+            let bitBuffer = 0n;
+            let bitBufferLen = 0;
+            let byteIndex = 0;
 
-                    while (bitBufferLen >= 8) {
-                        bitBufferLen -= 8;
-                        const byteToWrite = Number((bitBuffer >> BigInt(bitBufferLen)) & 0xFFn);
-                        byteArray[byteIndex++] = byteToWrite;
-                    }
-                }
-                // Write any remaining bits from the buffer, padded with zeros at the LSB end
-                if (bitBufferLen > 0) {
-                    const byteToWrite = Number((bitBuffer << BigInt(8 - bitBufferLen)) & 0xFFn);
+            for (const valBigInt of sequenceToSave) {
+                bitBuffer = (bitBuffer << BigInt(currentActiveBitDepth)) | valBigInt;
+                bitBufferLen += currentActiveBitDepth;
+
+                while (bitBufferLen >= 8) {
+                    bitBufferLen -= 8;
+                    const byteToWrite = Number((bitBuffer >> BigInt(bitBufferLen)) & 0xFFn);
                     byteArray[byteIndex++] = byteToWrite;
                 }
-                
-                const finalBlobBuffer = buffer.slice(0, byteIndex); // Use actual bytes written
-                const blob = new Blob([finalBlobBuffer], { type: 'application/octet-stream' });
-                const link = document.createElement('a');
-                link.download = `sequence_N${numElements}_B${currentActiveBitDepth}_${Date.now()}.seqbin`;
-                link.href = URL.createObjectURL(blob); document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
-            } catch (e) { showErrorModal("Save Binary Error", e.message); console.error(e); } finally { hideLoader(); }
-        }, 10);
+            }
+            if (bitBufferLen > 0) {
+                const byteToWrite = Number((bitBuffer << BigInt(8 - bitBufferLen)) & 0xFFn);
+                byteArray[byteIndex++] = byteToWrite;
+            }
+            
+            // Ensure we only use the part of the buffer that was actually written to
+            const finalBlobBuffer = buffer.slice(0, byteIndex); 
+            const blob = new Blob([finalBlobBuffer], { type: 'application/octet-stream' });
+            const link = document.createElement('a');
+            link.download = `sequence_N${numElements}_B${currentActiveBitDepth}_${Date.now()}.seqbin`;
+            link.href = URL.createObjectURL(blob); document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
+        } catch (e) { 
+            showErrorModal("Save Binary Error", e.message); console.error("Save Binary Error:", e); 
+        } finally { 
+            hideLoader(); 
+        }
     });
 
     dom.loadSequenceRawBinaryInput.addEventListener('change', async (event) => {
@@ -401,6 +406,7 @@
         reader.onload = async (e) => {
             showLoader("Processing Binary Data...", true);
             try {
+                await new Promise(resolve => setTimeout(resolve, 10)); // Allow UI to update
                 const arrayBuffer = e.target.result;
                 if (!(arrayBuffer instanceof ArrayBuffer)) { throw new Error("File content not ArrayBuffer."); }
 
@@ -412,11 +418,12 @@
 
                 if (isNaN(expectedN) || expectedN < 0) { throw new Error("Filename metadata for N is missing/invalid."); }
                 if (isNaN(expectedB_fromFile) || expectedB_fromFile < CONFIG.MIN_BIT_DEPTH || expectedB_fromFile > CONFIG.MAX_BIT_DEPTH) {
-                    throw new Error(`Filename metadata for B is missing or invalid. Supported: ${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}. Got: ${expectedB_fromFile}`);
+                    throw new Error(`Filename metadata for B is invalid. Supported: ${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}. Got: ${expectedB_fromFile}`);
                 }
                 
                 currentActiveBitDepth = expectedB_fromFile;
-                dom.sequenceBitDepthSelect.value = Array.from(dom.sequenceBitDepthSelect.options).some(o => o.value == currentActiveBitDepth) ? currentActiveBitDepth : "custom";
+                dom.sequenceBitDepthSelect.value = Array.from(dom.sequenceBitDepthSelect.options).some(o => parseInt(o.value) === currentActiveBitDepth) ? currentActiveBitDepth.toString() : "custom";
+
                 if (dom.sequenceBitDepthSelect.value === "custom") {
                     dom.customBitDepthGroup.style.display = 'block';
                     dom.customBitDepthInput.value = currentActiveBitDepth;
@@ -425,15 +432,15 @@
                 }
                 updateSequenceInputPlaceholderAndTitle(currentActiveBitDepth);
 
-                const expectedTotalBitsForN = expectedN * currentActiveBitDepth;
-                const actualBytesNeededForN = Math.ceil(expectedTotalBitsForN / 8);
+                const expectedTotalBitsForN = BigInt(expectedN) * BigInt(currentActiveBitDepth); // Use BigInt for potentially large total
+                const actualBytesNeededForN = Math.ceil(Number(expectedTotalBitsForN) / 8); // Convert to Number for Math.ceil
 
                 if (arrayBuffer.byteLength < actualBytesNeededForN && expectedN > 0) {
                      showErrorModal("Load Warning", `File is smaller (${arrayBuffer.byteLength} bytes) than expected (${actualBytesNeededForN} bytes) for ${expectedN} elements of ${currentActiveBitDepth}-bits. Processing available data.`);
                 }
                 
                 const byteArray = new Uint8Array(arrayBuffer);
-                const loadedSeq = []; // Array<BigInt>
+                const loadedSeq = []; 
                 let bitBuffer = 0n;
                 let bitBufferLen = 0;
                 let byteIndex = 0;
@@ -443,45 +450,45 @@
                     let bitsReadForElement = 0;
                     
                     while(bitsReadForElement < currentActiveBitDepth) {
-                        if (bitBufferLen === 0) { // Need more bits from byteArray
-                            if (byteIndex < byteArray.length) {
-                                bitBuffer = (bitBuffer << 8n) | BigInt(byteArray[byteIndex++]);
-                                bitBufferLen += 8;
-                            } else { // No more bytes in file
-                                if (bitsReadForElement > 0) { // Partial element read
-                                    currentElementVal <<= BigInt(currentActiveBitDepth - bitsReadForElement); // Pad with LSB zeros
-                                    console.warn(`Partial element read for element ${i+1} due to EOF. Padded with zeros.`);
-                                } else { // Cannot read even start of element
-                                     throw new Error(`Unexpected end of file while reading element ${i + 1}. Read ${loadedSeq.length} full elements.`);
-                                }
-                                bitsReadForElement = currentActiveBitDepth; // Break inner while
-                                break; // Break from inner while, will likely break outer for loop too
-                            }
+                        if (bitBufferLen < (currentActiveBitDepth - bitsReadForElement) && byteIndex < byteArray.length) { // Need more bits than available in buffer, and more bytes in file
+                            bitBuffer = (bitBuffer << 8n) | BigInt(byteArray[byteIndex++]);
+                            bitBufferLen += 8;
+                        } else if (bitBufferLen === 0 && byteIndex >= byteArray.length) { // No more bits in buffer AND no more bytes in file
+                             if (bitsReadForElement > 0) { // Partial element read before EOF
+                                currentElementVal <<= BigInt(currentActiveBitDepth - bitsReadForElement); // Pad with LSB zeros
+                                console.warn(`Partial element read for element ${i+1} due to EOF. Padded with zeros.`);
+                             } else {
+                                 // Cannot even start reading the element, and no more data.
+                                 if (loadedSeq.length < expectedN) { // Only throw error if we haven't read all expected elements.
+                                     throw new Error(`Unexpected end of file while trying to read element ${i + 1}. Read ${loadedSeq.length} full elements.`);
+                                 }
+                             }
+                             bitsReadForElement = currentActiveBitDepth; // Force break from inner while
+                             break; 
                         }
 
                         const bitsToTake = Math.min(bitBufferLen, currentActiveBitDepth - bitsReadForElement);
-                        const mask = (1n << BigInt(bitsToTake)) - 1n;
-                        const valueChunk = (bitBuffer >> BigInt(bitBufferLen - bitsToTake)) & mask;
+                        if (bitsToTake <= 0) break; // Should not happen if loop condition is correct
+
+                        const valueChunk = (bitBuffer >> BigInt(bitBufferLen - bitsToTake)) & ((1n << BigInt(bitsToTake)) - 1n);
                         
                         currentElementVal = (currentElementVal << BigInt(bitsToTake)) | valueChunk;
                         
                         bitBufferLen -= bitsToTake;
                         bitsReadForElement += bitsToTake;
                     }
-                     if (byteIndex >= byteArray.length && bitBufferLen === 0 && bitsReadForElement < currentActiveBitDepth && i < expectedN-1) {
-                        if(bitsReadForElement > 0){ // we have partial data for current element
-                            currentElementVal <<= BigInt(currentActiveBitDepth - bitsReadForElement);
-                            loadedSeq.push(currentElementVal);
-                            console.warn(`File ended prematurely. Last element ${loadedSeq.length} was partial and padded.`);
+                    
+                    if (bitsReadForElement < currentActiveBitDepth && i < expectedN) { // If loop broke due to EOF
+                        if (bitsReadForElement > 0) { // If we started reading the element
+                             currentElementVal <<= BigInt(currentActiveBitDepth - bitsReadForElement); // Pad the partially read element
+                             loadedSeq.push(currentElementVal);
+                             console.warn(`Element ${loadedSeq.length} was partial (read ${bitsReadForElement} of ${currentActiveBitDepth} bits) due to EOF and was padded.`);
                         }
-                        break; // Not enough data for subsequent full elements
+                        console.warn(`File ended before all ${expectedN} elements could be read. Loaded ${loadedSeq.length} elements.`);
+                        break; // Stop trying to read more elements
                     }
-                    if(bitsReadForElement === currentActiveBitDepth){
+                    if (bitsReadForElement === currentActiveBitDepth) {
                         loadedSeq.push(currentElementVal);
-                    } else if (i === expectedN -1 && bitsReadForElement > 0) { // Last element might be partial if total bits not multiple of element bit depth
-                        currentElementVal <<= BigInt(currentActiveBitDepth - bitsReadForElement);
-                        loadedSeq.push(currentElementVal);
-                        console.warn(`Last element was partial (read ${bitsReadForElement} of ${currentActiveBitDepth} bits) and padded.`);
                     }
                 }
                 
@@ -503,12 +510,11 @@
         console.log("Attempting to initialize application...");
         showLoader("Initializing Application...", true);
         dom.charSetSizeDisplay.textContent = CHAR_SET_Array.length;
-        dom.sequenceBitDepthSelect.value = CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH;
+        dom.sequenceBitDepthSelect.value = CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH.toString();
         currentActiveBitDepth = CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH; 
         updateSequenceInputPlaceholderAndTitle(currentActiveBitDepth);
         dom.customBitDepthInput.min = CONFIG.MIN_BIT_DEPTH;
         dom.customBitDepthInput.max = CONFIG.MAX_BIT_DEPTH;
-
 
         try {
             console.log("Calling init()...");
@@ -526,7 +532,7 @@
 
         } catch (e) {
             console.error("FAILED to load WASM module or initialize AppState:", e);
-            showErrorModal("Initialization Error", `Failed to load application: ${e.message || e}`);
+            showErrorModal("Initialization Error", `Failed to load application: ${e.message || e.toString()}`);
         } finally { 
              hideLoader();
              console.log("Initialization routine finished.");
