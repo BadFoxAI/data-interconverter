@@ -1,0 +1,9 @@
+C:\Users\Compy386\Desktop\Projects\data-interconverter-app\rust-wasm-lib\target\wasm32-unknown-unknown\release\deps\libwasm_bindgen_futures-d095e95714ac212a.rmeta: C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.50\src\lib.rs C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.50\src\queue.rs C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.50\src\task\singlethread.rs
+
+C:\Users\Compy386\Desktop\Projects\data-interconverter-app\rust-wasm-lib\target\wasm32-unknown-unknown\release\deps\libwasm_bindgen_futures-d095e95714ac212a.rlib: C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.50\src\lib.rs C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.50\src\queue.rs C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.50\src\task\singlethread.rs
+
+C:\Users\Compy386\Desktop\Projects\data-interconverter-app\rust-wasm-lib\target\wasm32-unknown-unknown\release\deps\wasm_bindgen_futures-d095e95714ac212a.d: C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.50\src\lib.rs C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.50\src\queue.rs C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.50\src\task\singlethread.rs
+
+C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.50\src\lib.rs:
+C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.50\src\queue.rs:
+C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.50\src\task\singlethread.rs:
