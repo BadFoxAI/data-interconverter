@@ -1,0 +1,56 @@
+[package]
+name = "data_interconverter_wasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Core WASM bindings - using specified older stable versions
+wasm-bindgen = "0.2.69"
+js-sys = "0.3.45"
+web-sys = { version = "0.3.45", features = [ 
+    'console',
+    'Document',
+    'Element',
+    'HtmlElement',
+    'Window',
+    'ImageData', 
+    'CanvasRenderingContext2d',
+    'HtmlCanvasElement',
+    'File', 
+    'Blob', 
+    'Url',  
+    'FileReader', 
+    'ProgressEvent', 
+    'EventTarget', 
+    'Node', 
+    # 'Window', # Duplicate, removed for clarity
+] }
+
+# Arbitrary-precision integers with Serde support for Vec<BigInt>
+num-bigint = { version = "0.4", features = ["serde"] } # CRUCIAL CHANGE HERE
+num-traits = "0.2" 
+
+# Error handling
+anyhow = "1.0"
+
+# Better panic messages in the browser console
+console_error_panic_hook = { version = "0.1.7", optional = true } 
+
+# For async WASM functions
+wasm-bindgen-futures = "0.4.26" 
+
+# For static, lazily evaluated variables
+lazy_static = "1.4.0" 
+
+# Serialization framework
+serde = { version = "1.0", features = ["derive"] }
+serde-wasm-bindgen = "0.5.0" 
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.26" 
+
+[features]
+default = ["console_error_panic_hook"]
