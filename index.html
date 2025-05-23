@@ -132,7 +132,7 @@
         CHAR_SET_STRING: " \n\t\r" + "abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "0123456789" + "!\"#$%&'()*+,-./:;<=>?@" + "[\\]^_`{|}~" + "←↑→↓↔" + "∑√≈≠≤≥÷±∞" + "€₹₽£¥₩" + "¡¢£¤¥¦§¨©ª«¬®¯°±²³´µ¶·¸¹º»¼½¾¿" + "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß" + "àáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ",
         DEFAULT_SEQUENCE_BIT_DEPTH: 24,
         MIN_BIT_DEPTH: 1, 
-        MAX_BIT_DEPTH: 256, // Max bit depth for individual sequence elements
+        MAX_BIT_DEPTH: 256, 
         DEBOUNCE_DELAY_INPUT: 350, DEBOUNCE_DELAY_TEXT_AREA: 400, LOADER_FLICKER_THRESHOLD: 300,
     };
     const CHAR_SET_Array = Array.from(new Set(CONFIG.CHAR_SET_STRING.split(''))).sort();
@@ -207,32 +207,42 @@
 
     async function renderSequence() {
         dom.sequenceBitDepthDisplay.textContent = currentActiveBitDepth; 
-        let sequenceForTextarea; 
+        let sequenceToDisplay; 
         let displayedLength;
-        // console.log(`[renderSequence] Source: ${sourceOfChange}, BitDepth: ${currentActiveBitDepth}`);
 
         if (sourceOfChange === 'sequenceInput' || sourceOfChange === 'rawBinaryUpload') {
-            sequenceForTextarea = lastDirectInputSequence ? [...lastDirectInputSequence] : []; 
-            displayedLength = sequenceForTextarea.length;
-            // console.log('[renderSequence] Using lastDirectInputSequence:', sequenceForTextarea.map(b => b.toString()));
+            sequenceToDisplay = lastDirectInputSequence ? [...lastDirectInputSequence] : []; 
+            displayedLength = sequenceToDisplay.length;
         } else {
             try {
-                // console.log('[renderSequence] Calling appStateWasm.calculateMinSequenceLength with bit_depth:', currentActiveBitDepth);
                 displayedLength = await appStateWasm.calculateMinSequenceLength(currentActiveBitDepth);
-                // console.log('[renderSequence] Min length from WASM:', displayedLength);
-
-                // console.log('[renderSequence] Calling appStateWasm.getSequenceRepresentation with length:', displayedLength, 'bit_depth:', currentActiveBitDepth);
-                sequenceForTextarea = await appStateWasm.getSequenceRepresentation(displayedLength, currentActiveBitDepth);
-                // console.log('[renderSequence] Sequence from WASM (Array<BigInt>):', sequenceForTextarea.map(b => b.toString()));
+                sequenceToDisplay = await appStateWasm.getSequenceRepresentation(displayedLength, currentActiveBitDepth);
             } catch (e) {
                 showErrorModal("Sequence Render Error", e.message);
-                sequenceForTextarea = [0n]; 
-                displayedLength = sequenceForTextarea.length; 
+                sequenceToDisplay = displayedLength > 0 ? Array(displayedLength).fill(0n) : [];
+                if (displayedLength === 0 && e.message && e.message.includes("target sequence length of 0")) {
+                    sequenceToDisplay = [];
+                } else if (sequenceToDisplay.length === 0 && displayedLength > 0) {
+                     sequenceToDisplay = [0n]; 
+                     displayedLength = 1;
+                } else if (sequenceToDisplay.length === 0 && displayedLength === 0) {
+                    // This is fine
+                }
                 console.error("[renderSequence] Error getting sequence from WASM:", e);
             }
         }
-        const displayText = sequenceForTextarea.map(bi => bi.toString()).join(', ');
-        // console.log('[renderSequence] Setting textarea value to:', displayText);
+
+        if (!Array.isArray(sequenceToDisplay)) {
+            console.warn("[renderSequence] sequenceToDisplay was not an array, defaulting to empty. Original:", sequenceToDisplay);
+            sequenceToDisplay = [];
+            displayedLength = 0;
+        }
+        
+        const displayText = sequenceToDisplay
+            .filter(bi => typeof bi !== 'undefined' && bi !== null) 
+            .map(bi => bi.toString())
+            .join(', '); 
+
         dom.sequenceInput.value = displayText;
         dom.sequenceCanonicalLengthDisplay.textContent = displayedLength;
     }
@@ -262,7 +272,7 @@
             } catch (e) { showErrorModal("Input Error", `Set CI: ${e.message}`); }
         } else if (dom.canonicalIndexInput.value.trim() !== "") {
             showErrorModal("Input Error", "Invalid BigInt in Canonical Index.");
-            try { 
+            try {
               dom.canonicalIndexInput.value = (await appStateWasm.getCanonicalIndex()).toString();
             } catch(e) { dom.canonicalIndexInput.value = "Error"; }
         }
@@ -328,40 +338,34 @@
     dom.sequenceInput.addEventListener('input', debounce(async () => {
         const sequenceStr = dom.sequenceInput.value.trim();
         const maxValBigInt = (2n ** BigInt(currentActiveBitDepth)) - 1n;
-        // console.log(`[Sequence Input] Raw string: "${sequenceStr}", BitDepth: ${currentActiveBitDepth}, MaxVal: ${maxValBigInt}`);
 
         try {
             let parsedSequence = [];
             if (sequenceStr !== "") {
-                parsedSequence = sequenceStr.split(',').map(s => s.trim()).filter(s => s !== "").map((sVal, idx) => {
+                const parts = sequenceStr.split(',');
+                parsedSequence = parts.map((sValRaw, idx) => {
+                    const sVal = sValRaw.trim();
+                    if (sVal === "") return null; 
                     try {
                         const cleanedSval = sVal.replace(/[^0-9]/g, '');
-                        if (cleanedSval === '') throw new Error(`Empty value found in sequence after cleaning non-digits from '${sVal}' at element ${idx}.`);
+                        if (cleanedSval === "") throw new Error(`No digits found in segment '${sVal}' at effective element index ${idx}.`);
                         const numBigInt = BigInt(cleanedSval);
-                        // console.log(`[Sequence Input] Parsing el ${idx}: "${sVal}" -> cleaned "${cleanedSval}" -> BigInt: ${numBigInt}`);
                         if (numBigInt < 0n || numBigInt > maxValBigInt) {
                             throw new Error(`Value '${sVal}' (parsed as ${numBigInt}) is out of range 0 to ${maxValBigInt} for ${currentActiveBitDepth}-bit elements.`);
                         }
                         return numBigInt;
                     } catch (parseError) {
-                         // console.error(`[Sequence Input] Error parsing element ${idx}: "${sVal}"`, parseError);
                          throw new Error(parseError.message || `Invalid sequence value: '${sVal}'. Must be a number between 0 and ${maxValBigInt}.`);
                     }
-                });
+                }).filter(val => val !== null); 
             }
-            // console.log('[Sequence Input] Parsed sequence (Array<BigInt>):', parsedSequence.map(b => b.toString()));
             
             lastDirectInputSequence = parsedSequence.slice(); 
-            
-            // console.log('[Sequence Input] Calling appStateWasm.setSequenceData with bit_depth:', currentActiveBitDepth);
             await appStateWasm.setSequenceData(parsedSequence, currentActiveBitDepth);
-            // console.log('[Sequence Input] appStateWasm.setSequenceData successful.');
-
             sourceOfChange = 'sequenceInput';
             updateAllViews();
         } catch (e) {
             showErrorModal("Sequence Input Error", e.message);
-            // console.error('[Sequence Input] Overall error:', e);
         }
     }, CONFIG.DEBOUNCE_DELAY_TEXT_AREA));
 
@@ -376,8 +380,8 @@
             }
             
             const numElements = sequenceToSave.length;
-            const totalBits = BigInt(numElements) * BigInt(currentActiveBitDepth); // Use BigInt for potentially large totalBits
-            const totalBytes = Number((totalBits + 7n) / 8n) ; // Equivalent to Math.ceil(totalBits / 8) using BigInt
+            const totalBits = BigInt(numElements) * BigInt(currentActiveBitDepth);
+            const totalBytes = Number((totalBits + 7n) / 8n) ;
 
             showLoader("Generating Raw Binary File...", true);
             await new Promise(resolve => setTimeout(resolve, 10)); 
@@ -488,13 +492,12 @@
                         }
 
                         const bitsToTake = Math.min(bitBufferLen, currentActiveBitDepth - bitsReadForElement);
-                        if (bitsToTake <= 0) { // Should only happen if file ends precisely or bitBufferLen becomes 0 unexpectedly
+                        if (bitsToTake <= 0) { 
                             if (bitBufferLen === 0 && byteIndex >= byteArray.length && bitsReadForElement < currentActiveBitDepth) {
-                                // No more bits anywhere, pad current element if partially read
                                 if (bitsReadForElement > 0) {
                                     currentElementVal <<= BigInt(currentActiveBitDepth - bitsReadForElement);
                                 }
-                                bitsReadForElement = currentActiveBitDepth; // Mark as "done" for this element
+                                bitsReadForElement = currentActiveBitDepth;
                             }
                             break; 
                         }
