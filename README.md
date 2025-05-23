@@ -2,7 +2,6 @@
 
 The Data Interconverter is a web-based utility designed for seamless conversion between various data modalities, all revolving around a central **Canonical Index** (a BigInt). It allows users to represent and transform data between:
 
-![Data-Interconverter](screenshot.png)
 [Data-Interconverter](https://data-interconverter.netlify.app/)
 
 *   **Text:** Arbitrary text strings using a programmer-focused character set.
