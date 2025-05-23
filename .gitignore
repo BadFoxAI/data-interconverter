@@ -1,1 +1,2 @@
-/target
+/target/
+rust-wasm-lib/target/

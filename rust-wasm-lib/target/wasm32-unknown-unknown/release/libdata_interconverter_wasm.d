@@ -1,1 +1,0 @@
-C:\Users\Compy386\Desktop\Projects\data-interconverter\rust-wasm-lib\target\wasm32-unknown-unknown\release\libdata_interconverter_wasm.rlib: C:\Users\Compy386\Desktop\Projects\data-interconverter\rust-wasm-lib\src\lib.rs

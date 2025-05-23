@@ -1,9 +1,0 @@
-C:\Users\Compy386\Desktop\Projects\data-interconverter\rust-wasm-lib\target\debug\deps\libserde_wasm_bindgen-cd7738b1cd96dd06.rmeta: C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\lib.rs C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\de.rs C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\error.rs C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\ser.rs C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\../README.md
-
-C:\Users\Compy386\Desktop\Projects\data-interconverter\rust-wasm-lib\target\debug\deps\serde_wasm_bindgen-cd7738b1cd96dd06.d: C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\lib.rs C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\de.rs C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\error.rs C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\ser.rs C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\../README.md
-
-C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\lib.rs:
-C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\de.rs:
-C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\error.rs:
-C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\ser.rs:
-C:\Users\Compy386\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-wasm-bindgen-0.5.0\src\../README.md:
