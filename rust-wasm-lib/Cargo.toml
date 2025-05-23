@@ -13,34 +13,23 @@ wasm-bindgen = "0.2.69"
 js-sys = "0.3.45"
 web-sys = { version = "0.3.45", features = [
     'console',
-    'Document',
+    'Document', # Minimal set, add as needed
     'Element',
     'HtmlElement',
     'Window',
-    'ImageData',
-    'CanvasRenderingContext2d',
-    'HtmlCanvasElement',
-    'File',
-    'Blob',
-    'Url',
-    'FileReader',
-    'ProgressEvent',
-    'EventTarget',
-    'Node',
-    'Window', # Added Window here as it was in your previous features list
+    # Removed ImageData, CanvasRenderingContext2d, HtmlCanvasElement, File, Blob, Url, FileReader, ProgressEvent, EventTarget, Node
 ] }
 num-bigint = "0.4"
 num-traits = "0.2"
 anyhow = "1.0"
 console_error_panic_hook = { version = "0.1", optional = true }
-wasm-bindgen-futures = "0.4" # This was in your toml, ensure it's here
-lazy_static = "1.4"         # This should be here, under dependencies
+wasm-bindgen-futures = "0.4" # Keep if any #[wasm_bindgen(start)] async or other async exports
+lazy_static = "1.4"
 serde = { version = "1.0", features = ["derive"] }
-serde-wasm-bindgen = "0.5"  # This was in your toml, ensure it's here
-
+serde-wasm-bindgen = "0.5" # Crucial for Vec<BigInt> <-> JS Array<BigInt>
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3" # This was in your toml, ensure it's here
+wasm-bindgen-test = "0.3"
 
 [features]
-default = ["console_error_panic_hook"] # Make sure 'lazy_static' is NOT on this line
+default = ["console_error_panic_hook"]
