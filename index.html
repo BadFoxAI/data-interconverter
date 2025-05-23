@@ -11,22 +11,21 @@
       --accent-hover-color: #0056b3; --danger-color: #e74c3c; --shadow-color: rgba(0,0,0,0.06);
       --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
       --monospace-font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-      --container-max-width: 1200px; /* Adjusted max width as one panel is removed */
+      --container-max-width: 1200px;
       --controls-max-width: 430px; --border-radius: 5px;
     }
-    html, body { height:100%; margin:0; /* overflow:hidden; removed to allow scrolling if needed */ }
+    html, body { height:100%; margin:0; }
     body { font-family:var(--font-family); background-color:var(--primary-bg); color:var(--text-color); display:flex; flex-direction:column; font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
-    .container { display:flex; flex-direction:column; flex-grow:1; max-width:var(--container-max-width); margin:0 auto; width:100%; /* overflow:hidden; removed */ }
+    .container { display:flex; flex-direction:column; flex-grow:1; max-width:var(--container-max-width); margin:0 auto; width:100%; }
     header { background:var(--accent-color); color:white; padding:12px 20px; text-align:center; box-shadow:0 2px 3px var(--shadow-color); flex-shrink:0; }
     header h1 { margin:0; font-size:1.5em; font-weight:500; }
-    main { display:flex; flex-grow:1; padding:15px; gap:15px; /* overflow:hidden; removed */ /* height:calc(100vh - 49px - 57px); removed */ }
+    main { display:flex; flex-grow:1; padding:15px; gap:15px; }
     .panel { background-color:var(--secondary-bg); padding:20px; border-radius:var(--border-radius); box-shadow:0 1px 2px var(--shadow-color); display:flex; flex-direction:column; gap:15px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--input-border) var(--secondary-bg); }
     .panel::-webkit-scrollbar { width:8px; } .panel::-webkit-scrollbar-track { background:var(--secondary-bg); } .panel::-webkit-scrollbar-thumb { background-color:var(--input-border); border-radius:4px; border:2px solid var(--secondary-bg); }
     
-    .controls-section { flex:1 1 45%; min-width:300px; } /* Adjusted flex */
-    .sequence-panel { flex:1 1 55%; min-width:300px; } /* Adjusted flex */
+    .controls-section { flex:1 1 45%; min-width:300px; }
+    .sequence-panel { flex:1 1 55%; min-width:300px; }
 
-    /* Responsive adjustments for two panels */
     @media (max-width:992px) { 
         main { 
             flex-direction:column; 
@@ -51,7 +50,6 @@
     .control-group textarea { min-height:100px; resize:vertical; font-family:var(--monospace-font-family); white-space:pre-wrap; }
     .control-group small { font-size:0.75em; color:#888; margin-top:5px; display:block; }
     #sequencePanelInfo { font-size: 0.85em; color: #666; margin-top: 10px;}
-    footer { background-color:#343a40; color:#bdc3c7; padding:15px; text-align:center; font-size:0.9em; flex-shrink:0;}
     .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; overflow:auto; background-color:rgba(0,0,0,0.45); justify-content:center; align-items:center; }
     .modal-content { background-color:#fefefe; margin:auto; padding:25px; border:1px solid #bbb; width:90%; max-width:420px; border-radius:var(--border-radius); text-align:center; box-shadow:0 4px 15px rgba(0,0,0,0.2); }
     .modal-content h3 { margin-top:0; margin-bottom:12px; font-size:1.2em; color:var(--accent-hover-color); } .modal-content p { font-size:0.95em; margin-bottom:20px; line-height:1.5; }
@@ -70,26 +68,40 @@
         <h2>Input & Controls</h2>
         <div class="control-group"> <label for="canonicalIndexInput">Canonical Index (BigInt):</label> <textarea id="canonicalIndexInput" rows="3" placeholder="0"></textarea> <small>Arbitrary-precision non-negative integer. Non-digits are ignored.</small> </div>
         <div class="control-group"> <label for="textInput">Text Data:</label> <textarea id="textInput" placeholder="Enter text..."></textarea> <small>Uses a programmer-focused character set (<span id="charSetSizeDisplay">0</span> chars).</small> </div>
-        <!-- Image Modality Section REMOVED -->
       </section>
 
-      <!-- Visualization Section REMOVED -->
-
       <section class="panel sequence-panel">
-        <h2>Numerical Sequence (24-bit elements)</h2>
+        <!-- MODIFIED: Title of the panel -->
+        <h2>Numerical Sequence (<span id="sequenceBitDepthDisplay">24</span>-bit elements)</h2>
+        
+        <!-- ADDED: Bit depth selector -->
+        <div class="control-group">
+            <label for="sequenceBitDepthSelect">Element Bit Depth:</label>
+            <select id="sequenceBitDepthSelect">
+                <option value="8">8-bit (0 to 255)</option>
+                <option value="16">16-bit (0 to 65,535)</option>
+                <option value="24" selected>24-bit (0 to 16,777,215)</option>
+                <option value="32">32-bit (0 to 4,294,967,295)</option>
+                <!-- Add more options like 48, 64 later if needed -->
+            </select>
+        </div>
+
         <div class="control-group">
             <label for="sequenceInput">Sequence (Input / Canonical Output):</label>
             <textarea id="sequenceInput" placeholder="e.g., 16711680, 65280, 255"></textarea>
-            <small>Comma-separated values. Reflects the current Canonical Index as a sequence of 24-bit numbers.</small>
+            <!-- MODIFIED: Helper text -->
+            <small>Comma-separated values. Reflects CI as sequence of numbers with selected bit depth.</small>
         </div>
         <div id="sequencePanelInfo">Canonical Length: <span id="sequenceCanonicalLengthDisplay">0</span> elements</div>
+        
         <div class="control-group" style="margin-top: auto;">
              <button id="saveSequenceRawBinaryButton">Save Sequence as Raw Binary</button>
         </div>
         <div class="control-group">
             <label for="loadSequenceRawBinaryInput">Load Sequence from Raw Binary:</label>
             <input type="file" id="loadSequenceRawBinaryInput" accept=".seqbin,.bin,.dat,application/octet-stream">
-            <small>Filename should contain _N<length>_B24 metadata.</small>
+            <!-- MODIFIED: Helper text -->
+            <small>Filename should contain _N<length>_B<bit_depth> metadata (e.g., _B24).</small>
         </div>
       </section>
     </main>
@@ -105,7 +117,8 @@
     // --- Configuration ---
     const CONFIG = {
         CHAR_SET_STRING: " \n\t\r" + "abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "0123456789" + "!\"#$%&'()*+,-./:;<=>?@" + "[\\]^_`{|}~" + "←↑→↓↔" + "∑√≈≠≤≥÷±∞" + "€₹₽£¥₩" + "¡¢£¤¥¦§¨©ª«¬®¯°±²³´µ¶·¸¹º»¼½¾¿" + "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß" + "àáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ",
-        NUM_SEQUENCE_ELEMENT_BIT_WIDTH: 24,
+        // NUM_SEQUENCE_ELEMENT_BIT_WIDTH REMOVED (will get from dropdown)
+        DEFAULT_SEQUENCE_BIT_DEPTH: 24, // ADDED: Default bit depth
         DEBOUNCE_DELAY_INPUT: 350, DEBOUNCE_DELAY_TEXT_AREA: 400, LOADER_FLICKER_THRESHOLD: 300,
     };
     const CHAR_SET_Array = Array.from(new Set(CONFIG.CHAR_SET_STRING.split(''))).sort();
@@ -115,19 +128,21 @@
         canonicalIndexInput: document.getElementById('canonicalIndexInput'),
         textInput: document.getElementById('textInput'),
         charSetSizeDisplay: document.getElementById('charSetSizeDisplay'),
-        // Image related DOM elements REMOVED
+        
+        sequenceBitDepthSelect: document.getElementById('sequenceBitDepthSelect'), // ADDED
+        sequenceBitDepthDisplay: document.getElementById('sequenceBitDepthDisplay'), // ADDED
         sequenceInput: document.getElementById('sequenceInput'),
         sequenceCanonicalLengthDisplay: document.getElementById('sequenceCanonicalLengthDisplay'),
         saveSequenceRawBinaryButton: document.getElementById('saveSequenceRawBinaryButton'),
         loadSequenceRawBinaryInput: document.getElementById('loadSequenceRawBinaryInput'),
+        
         errorModal: { el: document.getElementById('errorModalElement'), title: document.getElementById('errorModalTitleElement'), message: document.getElementById('errorModalMessageElement'), okButton: document.getElementById('errorModalOkButtonElement') },
         loadingOverlay: document.getElementById('loadingOverlay'),
         loadingMessage: document.getElementById('loadingMessage'),
     };
-    // mainImageCtx REMOVED
 
     // --- Application State (Managed by Rust, but JS needs a reference) ---
-    let appStateWasm; // This will hold the Rust AppState object
+    let appStateWasm;
     let sourceOfChange = 'initialLoad';
     let lastDirectInputSequence = null;
 
@@ -165,19 +180,21 @@
         }
     }
 
-    // renderMainImage REMOVED
-
     async function renderSequence() {
         let sequenceForTextarea;
         let displayedLength;
+        const currentBitDepth = parseInt(dom.sequenceBitDepthSelect.value);
+        dom.sequenceBitDepthDisplay.textContent = currentBitDepth; // Update panel title
 
         if (sourceOfChange === 'sequenceInput' || sourceOfChange === 'rawBinaryUpload') {
             sequenceForTextarea = lastDirectInputSequence ? [...lastDirectInputSequence] : [];
             displayedLength = sequenceForTextarea.length;
         } else {
             try {
-                displayedLength = await appStateWasm.calculateMinSequenceLength();
-                sequenceForTextarea = await appStateWasm.getSequenceRepresentation(displayedLength);
+                // Pass currentBitDepth to WASM function
+                displayedLength = await appStateWasm.calculateMinSequenceLength(currentBitDepth);
+                // Pass currentBitDepth to WASM function
+                sequenceForTextarea = await appStateWasm.getSequenceRepresentation(displayedLength, currentBitDepth);
             } catch (e) {
                 showErrorModal("Sequence Render Error", e.message);
                 sequenceForTextarea = [`Error: ${e.message.substring(0, 50)}`];
@@ -195,7 +212,6 @@
         try {
             await renderCanonicalIndex();
             await renderText();
-            // renderMainImage call REMOVED
             await renderSequence();
         } catch (e) {
             showErrorModal("View Update Error", `Error during view update: ${e.message}`);
@@ -239,30 +255,35 @@
         }
     }, CONFIG.DEBOUNCE_DELAY_TEXT_AREA));
 
-    // onImageFileSelected function REMOVED
-    // parseFilenameForSystemImageParams function REMOVED
-    // dom.imageUploadInput event listener REMOVED
-    // dom.downloadImagePNGButton event listener REMOVED
-    // handleImageDecodeParamsChange function REMOVED
-    // dom.imageChannelsSelect event listener REMOVED
-    // dom.imageBpcSelect event listener REMOVED
-
+    // ADDED: Event listener for bit depth change
+    dom.sequenceBitDepthSelect.addEventListener('change', () => {
+        sourceOfChange = 'bitDepthChange';
+        lastDirectInputSequence = null; // Sequence representation will change
+        // Update placeholder for sequence input based on new max value
+        const currentBitDepth = parseInt(dom.sequenceBitDepthSelect.value);
+        const maxVal = (2 ** currentBitDepth) -1;
+        dom.sequenceInput.placeholder = `e.g., ${maxVal}, ${Math.floor(maxVal/2)}, ...`;
+        updateAllViews();
+    });
 
     dom.sequenceInput.addEventListener('input', debounce(async () => {
         const sequenceStr = dom.sequenceInput.value.trim();
+        const currentBitDepth = parseInt(dom.sequenceBitDepthSelect.value);
+        const maxValForBitDepth = (2 ** currentBitDepth) - 1;
         try {
             let parsedSequence = [];
             if (sequenceStr !== "") {
                 parsedSequence = sequenceStr.split(',').map(s => s.trim()).filter(s => s !== "").map(sVal => {
                     const num = Number(sVal);
-                    if (isNaN(num) || num < 0 || num > (2 ** CONFIG.NUM_SEQUENCE_ELEMENT_BIT_WIDTH - 1)) {
-                        throw new Error(`Invalid sequence value: '${sVal}'. Must be a number between 0 and ${2 ** CONFIG.NUM_SEQUENCE_ELEMENT_BIT_WIDTH - 1}.`);
+                    if (isNaN(num) || num < 0 || num > maxValForBitDepth) {
+                        throw new Error(`Invalid sequence value: '${sVal}'. Must be a number between 0 and ${maxValForBitDepth} for ${currentBitDepth}-bit elements.`);
                     }
                     return num;
                 });
             }
             lastDirectInputSequence = parsedSequence.slice();
-            await appStateWasm.setSequenceData(parsedSequence);
+            // Pass currentBitDepth to WASM function
+            await appStateWasm.setSequenceData(parsedSequence, currentBitDepth);
             sourceOfChange = 'sequenceInput';
             updateAllViews();
         } catch (e) {
@@ -271,8 +292,11 @@
     }, CONFIG.DEBOUNCE_DELAY_TEXT_AREA));
 
     dom.saveSequenceRawBinaryButton.addEventListener('click', async () => {
-        const currentMinLength = await appStateWasm.calculateMinSequenceLength();
-        const sequenceToSave = await appStateWasm.getSequenceRepresentation(currentMinLength);
+        const currentBitDepth = parseInt(dom.sequenceBitDepthSelect.value);
+        // Pass currentBitDepth to WASM function
+        const currentMinLength = await appStateWasm.calculateMinSequenceLength(currentBitDepth);
+        // Pass currentBitDepth to WASM function
+        const sequenceToSave = await appStateWasm.getSequenceRepresentation(currentMinLength, currentBitDepth);
 
         const currentCanonicalIndex = await appStateWasm.getCanonicalIndex();
         if ((!sequenceToSave || sequenceToSave.length === 0) && currentCanonicalIndex !== 0n) {
@@ -280,7 +304,7 @@
             return;
         }
         const numElements = sequenceToSave.length;
-        const bytesPerElement = Math.ceil(CONFIG.NUM_SEQUENCE_ELEMENT_BIT_WIDTH / 8);
+        const bytesPerElement = Math.ceil(currentBitDepth / 8); // Use dynamic bit depth
         showLoader("Generating Raw Binary File...", true);
         setTimeout(() => {
             try {
@@ -288,14 +312,15 @@
                 const dataView = new DataView(buffer);
                 let offset = 0;
                 for (const val of sequenceToSave) {
-                    if (val < 0 || val > (2 ** CONFIG.NUM_SEQUENCE_ELEMENT_BIT_WIDTH - 1)) { throw new Error(`Sequence value ${val} is out of range for saving.`);}
-                    dataView.setUint8(offset++, (val >> 16) & 0xFF);
-                    dataView.setUint8(offset++, (val >> 8) & 0xFF);
-                    dataView.setUint8(offset++, val & 0xFF);
+                    // Write bytes based on bit depth
+                    for (let j = bytesPerElement - 1; j >= 0; j--) {
+                        dataView.setUint8(offset++, (val >> (j * 8)) & 0xFF);
+                    }
                 }
                 const blob = new Blob([buffer], { type: 'application/octet-stream' });
                 const link = document.createElement('a');
-                link.download = `sequence_N${numElements}_B${CONFIG.NUM_SEQUENCE_ELEMENT_BIT_WIDTH}_${Date.now()}.seqbin`;
+                // Update filename to include current bit depth
+                link.download = `sequence_N${numElements}_B${currentBitDepth}_${Date.now()}.seqbin`;
                 link.href = URL.createObjectURL(blob); document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
             } catch (e) { showErrorModal("Save Binary Error", e.message); } finally { hideLoader(); }
         }, 10);
@@ -314,17 +339,26 @@
                 const buffer = e.target.result;
                 if (!(buffer instanceof ArrayBuffer)) { throw new Error("File content is not an ArrayBuffer."); }
 
-                let expectedN = -1; let expectedB = -1;
-                const matchN = file.name.match(/_N(\d+)_/); const matchB = file.name.match(/_B(\d+)_/);
+                let expectedN = -1; let expectedB_fromFile = -1;
+                const matchN = file.name.match(/_N(\d+)_/); 
+                const matchB = file.name.match(/_B(\d+)_/); // Expect B from filename
+                
                 if (matchN && matchN[1]) expectedN = parseInt(matchN[1], 10);
-                if (matchB && matchB[1]) expectedB = parseInt(matchB[1], 10);
+                if (matchB && matchB[1]) expectedB_fromFile = parseInt(matchB[1], 10);
 
                 if (isNaN(expectedN) || expectedN < 0) { throw new Error("Filename metadata for number of elements (N) is missing or invalid."); }
-                if (isNaN(expectedB) || expectedB !== CONFIG.NUM_SEQUENCE_ELEMENT_BIT_WIDTH) { throw new Error(`Filename metadata for bit width (B) mismatch. Expected ${CONFIG.NUM_SEQUENCE_ELEMENT_BIT_WIDTH}, got ${expectedB}.`); }
+                if (isNaN(expectedB_fromFile) || ![8, 16, 24, 32].includes(expectedB_fromFile)) { // Validate B
+                    throw new Error(`Filename metadata for bit width (B) is missing or invalid (e.g., _B24). Supported: 8, 16, 24, 32. Got: ${expectedB_fromFile}`);
+                }
+                
+                // Update UI dropdown to match file's bit depth
+                dom.sequenceBitDepthSelect.value = expectedB_fromFile;
+                dom.sequenceBitDepthDisplay.textContent = expectedB_fromFile;
+                const currentBitDepth = expectedB_fromFile; // Use bit depth from file for processing
 
-                const bytesPerElement = Math.ceil(CONFIG.NUM_SEQUENCE_ELEMENT_BIT_WIDTH / 8);
+                const bytesPerElement = Math.ceil(currentBitDepth / 8);
                 if (buffer.byteLength === 0 && expectedN === 0) { /* fine */ }
-                else if (buffer.byteLength !== expectedN * bytesPerElement) { showErrorModal("Load Warning", `File size (${buffer.byteLength} bytes) does not match expected size (${expectedN * bytesPerElement} bytes) from filename metadata. Processing available data.`); }
+                else if (buffer.byteLength !== expectedN * bytesPerElement) { showErrorModal("Load Warning", `File size (${buffer.byteLength} bytes) does not match expected size (${expectedN * bytesPerElement} bytes) for ${currentBitDepth}-bit elements from filename metadata. Processing available data.`); }
 
                 const dataView = new DataView(buffer);
                 const loadedSeq = [];
@@ -333,14 +367,18 @@
                 for (let i = 0; i < numElementsToRead; i++) {
                     const offset = i * bytesPerElement;
                     if (offset + bytesPerElement > buffer.byteLength) break;
-                    const val = (dataView.getUint8(offset) << 16) | (dataView.getUint8(offset + 1) << 8) | dataView.getUint8(offset + 2);
+                    let val = 0;
+                    for (let j = 0; j < bytesPerElement; j++) {
+                        val = (val << 8) | dataView.getUint8(offset + j);
+                    }
                     loadedSeq.push(val);
                 }
 
                 if (loadedSeq.length < expectedN && expectedN > 0 && numElementsToRead < expectedN) { showErrorModal("Load Warning", `Read ${loadedSeq.length} elements due to file size, but filename expected N=${expectedN}.`); }
 
                 lastDirectInputSequence = loadedSeq.slice();
-                await appStateWasm.setSequenceData(loadedSeq);
+                // Pass currentBitDepth (from file) to WASM function
+                await appStateWasm.setSequenceData(loadedSeq, currentBitDepth);
                 sourceOfChange = 'rawBinaryUpload';
                 updateAllViews();
             } catch (e) { showErrorModal("Load Binary Error", e.message); } finally { hideLoader(); dom.loadSequenceRawBinaryInput.value = ''; }
@@ -354,22 +392,21 @@
     async function initializeApp() {
         showLoader("Initializing Application...", true);
         dom.charSetSizeDisplay.textContent = CHAR_SET_Array.length;
-        // Default image params REMOVED
+        dom.sequenceBitDepthSelect.value = CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH; // Set default bit depth
+        dom.sequenceBitDepthDisplay.textContent = CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH;
+        const maxVal = (2 ** CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH) -1;
+        dom.sequenceInput.placeholder = `e.g., ${maxVal}, ${Math.floor(maxVal/2)}, ...`;
+
 
         try {
-            await init(); // Initialize the WASM module
-            appStateWasm = new AppState(); // Create an instance of your Rust AppState
+            await init();
+            appStateWasm = new AppState();
             sourceOfChange = 'initialLoad';
-            await updateAllViews(); // Perform initial update
-
-            const currentCanonicalIndex = await appStateWasm.getCanonicalIndex();
-            if (currentCanonicalIndex === 0n && sourceOfChange === 'initialLoad') {
-                // No default status message as image panel is gone
-            }
+            await updateAllViews(); 
         } catch (e) {
             console.error("Failed to load WASM module or initialize AppState:", e);
             showErrorModal("Initialization Error", `Failed to load application: ${e}`);
-        } finally { // Always hide loader after init attempt
+        } finally { 
              hideLoader();
         }
     }
