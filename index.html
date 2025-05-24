@@ -19,13 +19,7 @@
         label { display: inline-block; margin-bottom: 5px; font-weight: bold; color: #555; }
         small, .info-text { color: #777; font-size: 0.9em; }
         #errorDisplay { color: #c0392b; background-color: #fadbd8; border: 1px solid #c0392b; padding: 12px; margin-top: 20px; border-radius: 4px; }
-        #loadingOverlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background-color: rgba(255, 255, 255, 0.85); 
-            display: flex; justify-content: center; align-items: center;
-            font-size: 1.6em; z-index: 1000; color: #34495e;
-            backdrop-filter: blur(2px); /* Subtle blur for modern browsers */
-        }
+        /* NO CSS FOR #loadingOverlay anymore */
         #customBitDepthGroupContainer { margin-top: 10px; padding: 10px; background-color: #f9f9f9; border-radius: 4px; border: 1px solid #eee;}
         #customBitDepthGroupContainer label, 
         #customBitDepthGroupContainer input[type="number"],
@@ -93,35 +87,28 @@
     </main>
 
     <hr>
+    <!-- The loadingOverlay div still exists, but will not be styled as an overlay. -->
+    <!-- It starts hidden due to the 'hidden' attribute. We will not try to show/hide it with JS for now. -->
+    <div id="loadingOverlay" hidden>Loading... (This should not be a blocking overlay)</div>
     <div id="errorDisplay" hidden></div>
-    <div id="loadingOverlay" hidden>Loading...</div>
+
 
 <script type="module">
-    // Ensure this path is correct relative to your index.html file
-    // It assumes index.html is in a directory, and 'rust-wasm-lib' is a subdirectory within that.
     import init, { AppState } from './rust-wasm-lib/pkg/data_interconverter_wasm.js';
 
-    // Configuration constants for the application.
-    const CONFIG = {
-        DEFAULT_SEQUENCE_BIT_DEPTH: 24, 
-        MIN_BIT_DEPTH: 1,               
-        MAX_BIT_DEPTH: 32,              
-        DEBOUNCE_DELAY_INPUT: 350,      
+    const CONFIG = { /* ... same as before ... */ 
+        DEFAULT_SEQUENCE_BIT_DEPTH: 24, MIN_BIT_DEPTH: 1, MAX_BIT_DEPTH: 32, DEBOUNCE_DELAY_INPUT: 350,
     };
-
-    // Cache of frequently accessed DOM elements.
-    const dom = {
+    const dom = { /* ... same as before ... */ 
         canonicalIndexInput: document.getElementById('canonicalIndexInput'),
         saveCanonicalIndexButton: document.getElementById('saveCanonicalIndexButton'),
         loadCanonicalIndexInput: document.getElementById('loadCanonicalIndexInput'),
-        
         sequenceBitDepthSelect: document.getElementById('sequenceBitDepthSelect'),
         customBitDepthGroupContainer: document.getElementById('customBitDepthGroupContainer'), 
         sequenceBitDepthDisplay: document.getElementById('sequenceBitDepthDisplay'), 
         sequenceOutputDisplay: document.getElementById('sequenceOutputDisplay'), 
         sequenceCanonicalLengthDisplay: document.getElementById('sequenceCanonicalLengthDisplay'),
         copySequenceButton: document.getElementById('copySequenceButton'),
-        
         errorDisplay: document.getElementById('errorDisplay'),
         loadingOverlay: document.getElementById('loadingOverlay'),
     };
@@ -129,337 +116,106 @@
     let appStateWasm; 
     let currentActiveBitDepth = CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH; 
 
-    function showError(message) {
-        dom.errorDisplay.textContent = `ERROR: ${message}`;
-        dom.errorDisplay.hidden = false;
-        console.error("Application Error:", message);
+    function showError(message) { /* ... same as before ... */ 
+        dom.errorDisplay.textContent = `ERROR: ${message}`; dom.errorDisplay.hidden = false; console.error("Application Error:", message);
     }
-
-    function clearError() {
-        dom.errorDisplay.textContent = '';
-        dom.errorDisplay.hidden = true;
-    }
-
-    function showLoader(show) {
-        dom.loadingOverlay.hidden = !show;
-    }
-
-    function debounce(func, delay) { 
-        let timeout; 
-        return function (...args) { 
-            clearTimeout(timeout); 
-            timeout = setTimeout(() => func.apply(this, args), delay); 
-        };
-    }
-
-    function safeParseBigInt(str) { 
-        try { 
-            const s = String(str).trim(); 
-            const numericStr = s.replace(/[^0-9]/g, ''); 
-            return numericStr === "" ? 0n : BigInt(numericStr); 
-        } catch (e) { 
-            console.error("safeParseBigInt failed for input:", str, "Error:", e);
-            return null; 
-        } 
-    }
-
-    function updateSequenceUIDisplaySettings(bitDepth) {
-        dom.sequenceBitDepthDisplay.textContent = bitDepth; 
-        const maxValBigInt = (2n ** BigInt(bitDepth)) - 1n; 
-        dom.sequenceOutputDisplay.placeholder = `Sequence of ${bitDepth}-bit numbers (0 to ${maxValBigInt.toString()}) appears here. Each element is a JS Number.`;
-        
-        const customInput = document.getElementById('customBitDepthInput');
-        if (customInput) {
-            customInput.min = CONFIG.MIN_BIT_DEPTH;
-            customInput.max = CONFIG.MAX_BIT_DEPTH;
-        }
-        const customLabelSpan = document.getElementById('customBitDepthMinMaxLabel');
-        if (customLabelSpan) {
-            customLabelSpan.textContent = `${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}`;
-        }
+    function clearError() { /* ... same as before ... */ 
+        dom.errorDisplay.textContent = ''; dom.errorDisplay.hidden = true;
     }
     
-    function getValidatedBitDepthFromCustomInput() {
-        const customInput = document.getElementById('customBitDepthInput');
-        if (!customInput) return currentActiveBitDepth;
+    // We are not using showLoader for now to simplify debugging.
+    // function showLoader(show) {
+    //     dom.loadingOverlay.hidden = !show;
+    // }
 
+    function debounce(func, delay) { /* ... same as before ... */ 
+        let timeout; return function (...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); };
+    }
+    function safeParseBigInt(str) { /* ... same as before ... */ 
+        try { const s = String(str).trim(); const numericStr = s.replace(/[^0-9]/g, ''); return numericStr === "" ? 0n : BigInt(numericStr); } catch (e) { console.error("safeParseBigInt failed for input:", str, "Error:", e); return null; } 
+    }
+    function updateSequenceUIDisplaySettings(bitDepth) { /* ... same as before ... */ 
+        dom.sequenceBitDepthDisplay.textContent = bitDepth; const maxValBigInt = (2n ** BigInt(bitDepth)) - 1n; dom.sequenceOutputDisplay.placeholder = `Sequence of ${bitDepth}-bit numbers (0 to ${maxValBigInt.toString()}) appears here. Each element is a JS Number.`;
+        const customInput = document.getElementById('customBitDepthInput'); if (customInput) { customInput.min = CONFIG.MIN_BIT_DEPTH; customInput.max = CONFIG.MAX_BIT_DEPTH; }
+        const customLabelSpan = document.getElementById('customBitDepthMinMaxLabel'); if (customLabelSpan) { customLabelSpan.textContent = `${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}`; }
+    }
+    function getValidatedBitDepthFromCustomInput() { /* ... same as before ... */ 
+        const customInput = document.getElementById('customBitDepthInput'); if (!customInput) return currentActiveBitDepth;
         let bitDepth = parseInt(customInput.value, 10);
-        if (isNaN(bitDepth) || bitDepth < CONFIG.MIN_BIT_DEPTH || bitDepth > CONFIG.MAX_BIT_DEPTH) {
-            showError(`Custom bit depth must be an integer between ${CONFIG.MIN_BIT_DEPTH} and ${CONFIG.MAX_BIT_DEPTH}. Reverting to ${currentActiveBitDepth}.`);
-            customInput.value = currentActiveBitDepth; 
-            return currentActiveBitDepth;
-        }
+        if (isNaN(bitDepth) || bitDepth < CONFIG.MIN_BIT_DEPTH || bitDepth > CONFIG.MAX_BIT_DEPTH) { showError(`Custom bit depth must be an integer between ${CONFIG.MIN_BIT_DEPTH} and ${CONFIG.MAX_BIT_DEPTH}. Reverting to ${currentActiveBitDepth}.`); customInput.value = currentActiveBitDepth; return currentActiveBitDepth; }
         return bitDepth;
     }
-
-    function createCustomBitDepthUI() {
-        dom.customBitDepthGroupContainer.innerHTML = `
-            <label for="customBitDepthInput">Custom (<span id="customBitDepthMinMaxLabel">${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}</span> bits):</label>
-            <input type="number" id="customBitDepthInput" value="${currentActiveBitDepth}" size="5">
-            <button id="applyCustomBitDepthButton">Apply</button>
-        `;
+    function createCustomBitDepthUI() { /* ... same as before ... */ 
+        dom.customBitDepthGroupContainer.innerHTML = `<label for="customBitDepthInput">Custom (<span id="customBitDepthMinMaxLabel">${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}</span> bits):</label><input type="number" id="customBitDepthInput" value="${currentActiveBitDepth}" size="5"><button id="applyCustomBitDepthButton">Apply</button>`;
         document.getElementById('applyCustomBitDepthButton').addEventListener('click', applyCustomDepthAction);
         const customInputEl = document.getElementById('customBitDepthInput');
-        customInputEl.addEventListener('keypress', (event) => {
-            if (event.key === 'Enter') {
-                event.preventDefault(); 
-                document.getElementById('applyCustomBitDepthButton').click();
-            }
-        });
-        customInputEl.addEventListener('input', () => { 
-            const val = parseInt(customInputEl.value, 10);
-            if (isNaN(val) || val < CONFIG.MIN_BIT_DEPTH || val > CONFIG.MAX_BIT_DEPTH) {
-                customInputEl.style.borderColor = 'red';
-            } else {
-                customInputEl.style.borderColor = ''; 
-            }
-        });
+        customInputEl.addEventListener('keypress', (event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('applyCustomBitDepthButton').click(); } });
+        customInputEl.addEventListener('input', () => { const val = parseInt(customInputEl.value, 10); if (isNaN(val) || val < CONFIG.MIN_BIT_DEPTH || val > CONFIG.MAX_BIT_DEPTH) { customInputEl.style.borderColor = 'red'; } else { customInputEl.style.borderColor = ''; } });
         updateSequenceUIDisplaySettings(currentActiveBitDepth); 
     }
-    
-    function applyCustomDepthAction() { 
-        clearError();
-        const customDepth = getValidatedBitDepthFromCustomInput();
-        
-        let matchedPreset = false;
-        for (let option of dom.sequenceBitDepthSelect.options) {
-            if (option.value !== "custom" && parseInt(option.value, 10) === customDepth) {
-                dom.sequenceBitDepthSelect.value = option.value; 
-                dom.customBitDepthGroupContainer.innerHTML = ''; 
-                matchedPreset = true;
-                break;
-            }
-        }
-        
-        if (!matchedPreset) {
-            if (dom.sequenceBitDepthSelect.value !== "custom") {
-                 dom.sequenceBitDepthSelect.value = "custom";
-            }
-            if (!document.getElementById('customBitDepthInput')) {
-                createCustomBitDepthUI(); 
-            }
-            const customInput = document.getElementById('customBitDepthInput');
-            if (customInput) customInput.value = customDepth;
-        }
+    function applyCustomDepthAction() { /* ... same as before ... */ 
+        clearError(); const customDepth = getValidatedBitDepthFromCustomInput(); let matchedPreset = false;
+        for (let option of dom.sequenceBitDepthSelect.options) { if (option.value !== "custom" && parseInt(option.value, 10) === customDepth) { dom.sequenceBitDepthSelect.value = option.value; dom.customBitDepthGroupContainer.innerHTML = ''; matchedPreset = true; break; } }
+        if (!matchedPreset) { if (dom.sequenceBitDepthSelect.value !== "custom") { dom.sequenceBitDepthSelect.value = "custom"; } if (!document.getElementById('customBitDepthInput')) { createCustomBitDepthUI(); } const customInput = document.getElementById('customBitDepthInput'); if (customInput) customInput.value = customDepth; }
         handleBitDepthChange(customDepth); 
     }
-
-    async function renderCanonicalIndex() {
-        if (!appStateWasm) { console.warn("WASM module not ready for renderCanonicalIndex"); return; }
-        try {
-            const indexJsBigInt = await appStateWasm.getCanonicalIndex(); 
-            dom.canonicalIndexInput.value = indexJsBigInt.toString();
-        } catch (e) { showError(`Failed to render Canonical Index: ${e.message || e}`); }
+    async function renderCanonicalIndex() { /* ... same as before ... */ 
+        if (!appStateWasm) { console.warn("WASM module not ready for renderCanonicalIndex"); return; } try { const indexJsBigInt = await appStateWasm.getCanonicalIndex(); dom.canonicalIndexInput.value = indexJsBigInt.toString(); } catch (e) { showError(`Failed to render Canonical Index: ${e.message || e}`); }
     }
-
-    async function renderSequence() {
-        if (!appStateWasm) { console.warn("WASM module not ready for renderSequence"); return; }
-        updateSequenceUIDisplaySettings(currentActiveBitDepth); 
-        
-        let sequenceToDisplay = []; 
-        let displayedLength = 0;
-
-        try {
-            displayedLength = await appStateWasm.calculateMinSequenceLength(currentActiveBitDepth);
-            sequenceToDisplay = await appStateWasm.getSequenceRepresentation(displayedLength, currentActiveBitDepth);
-
-            if (!Array.isArray(sequenceToDisplay)) {
-                throw new Error("WASM module did not return a valid sequence array.");
-            }
-            
-            sequenceToDisplay = sequenceToDisplay.map((item, idx) => {
-                if (typeof item === 'number') {
-                    return item; 
-                } else {
-                    console.warn(`[renderSequence] WASM returned non-Number at index ${idx}:`, item, typeof item);
-                    throw new Error(`WASM returned an invalid data type for sequence element at index ${idx}. Expected Number.`);
-                }
-            });
-
-        } catch (e) {
-            const ciValue = safeParseBigInt(dom.canonicalIndexInput.value);
-            if (e.message && e.message.includes("target sequence length of 0") && ciValue === 0n && displayedLength === 0) {
-                clearError(); 
-                sequenceToDisplay = []; 
-            } else {
-                 showError(`Failed to render Sequence: ${e.message || e}`);
-            }
-            if (displayedLength > 0 && sequenceToDisplay.length === 0) { 
-                sequenceToDisplay = Array(displayedLength).fill(0); 
-            }
-        }
-        
-        const displayText = sequenceToDisplay.map(num => num.toString()).join(', '); 
-        dom.sequenceOutputDisplay.value = displayText;
-        dom.sequenceCanonicalLengthDisplay.textContent = displayedLength;
+    async function renderSequence() { /* ... same as before ... */ 
+        if (!appStateWasm) { console.warn("WASM module not ready for renderSequence"); return; } updateSequenceUIDisplaySettings(currentActiveBitDepth); 
+        let sequenceToDisplay = []; let displayedLength = 0;
+        try { displayedLength = await appStateWasm.calculateMinSequenceLength(currentActiveBitDepth); sequenceToDisplay = await appStateWasm.getSequenceRepresentation(displayedLength, currentActiveBitDepth);
+            if (!Array.isArray(sequenceToDisplay)) { throw new Error("WASM module did not return a valid sequence array."); }
+            sequenceToDisplay = sequenceToDisplay.map((item, idx) => { if (typeof item === 'number') { return item; } else { console.warn(`[renderSequence] WASM returned non-Number at index ${idx}:`, item, typeof item); throw new Error(`WASM returned an invalid data type for sequence element at index ${idx}. Expected Number.`); } });
+        } catch (e) { const ciValue = safeParseBigInt(dom.canonicalIndexInput.value); if (e.message && e.message.includes("target sequence length of 0") && ciValue === 0n && displayedLength === 0) { clearError(); sequenceToDisplay = []; } else { showError(`Failed to render Sequence: ${e.message || e}`); } if (displayedLength > 0 && sequenceToDisplay.length === 0) { sequenceToDisplay = Array(displayedLength).fill(0); } }
+        const displayText = sequenceToDisplay.map(num => num.toString()).join(', '); dom.sequenceOutputDisplay.value = displayText; dom.sequenceCanonicalLengthDisplay.textContent = displayedLength;
     }
 
     async function updateAllViews(triggerSource = "unknown") {
         if (!appStateWasm) { console.warn("WASM module not ready for updateAllViews"); return; }
-        showLoader(true);
+        // Not using showLoader for now
         clearError(); 
         try {
             await renderCanonicalIndex();
             await renderSequence();
         } catch (e) { showError(`Failed during view update: ${e.message || e}`); }
-        finally { showLoader(false); }
+        // Not using showLoader for now
     }
     
-    dom.canonicalIndexInput.addEventListener('input', debounce(async () => {
-        if (!appStateWasm) { console.warn("WASM module not ready for canonicalIndexInput handler"); return; }
-        clearError();
-        const rawValue = dom.canonicalIndexInput.value;
-        const newIndex = safeParseBigInt(rawValue);
-
-        if (newIndex !== null) { 
-            try {
-                await appStateWasm.setCanonicalIndex(newIndex);     
-                updateAllViews("canonicalIndexInput");
-            } catch (e) { 
-                showError(`Error setting Canonical Index: ${e.message || e}`);
-                try {
-                    const currentIndex = await appStateWasm.getCanonicalIndex();
-                    dom.canonicalIndexInput.value = currentIndex.toString();
-                } catch (revertError) {
-                    dom.canonicalIndexInput.value = "0"; 
-                }
-            }
-        } else if (rawValue.trim() !== "" && !/^[0-9]*$/.test(rawValue.trim().replace(/[^0-9]/g, ''))) { 
-            showError("Invalid characters in Canonical Index. Only non-negative integers are allowed.");
-            try { 
-              const currentIndex = await appStateWasm.getCanonicalIndex();
-              dom.canonicalIndexInput.value = currentIndex.toString();
-            } catch(revertError) { dom.canonicalIndexInput.value = "0"; }
-        } else if (rawValue.trim() === "") { 
-            try {
-                await appStateWasm.setCanonicalIndex(0n);
-                updateAllViews("canonicalIndexInput (empty treated as 0)");
-            } catch (e) { showError(`Error setting Canonical Index from empty input: ${e.message || e}`); }
-        }
+    dom.canonicalIndexInput.addEventListener('input', debounce(async () => { /* ... same as before ... */ 
+        if (!appStateWasm) { console.warn("WASM module not ready for canonicalIndexInput handler"); return; } clearError(); const rawValue = dom.canonicalIndexInput.value; const newIndex = safeParseBigInt(rawValue);
+        if (newIndex !== null) { try { await appStateWasm.setCanonicalIndex(newIndex); updateAllViews("canonicalIndexInput"); } catch (e) { showError(`Error setting Canonical Index: ${e.message || e}`); try { const currentIndex = await appStateWasm.getCanonicalIndex(); dom.canonicalIndexInput.value = currentIndex.toString(); } catch (revertError) { dom.canonicalIndexInput.value = "0"; } }
+        } else if (rawValue.trim() !== "" && !/^[0-9]*$/.test(rawValue.trim().replace(/[^0-9]/g, ''))) { showError("Invalid characters in Canonical Index. Only non-negative integers are allowed."); try { const currentIndex = await appStateWasm.getCanonicalIndex(); dom.canonicalIndexInput.value = currentIndex.toString(); } catch(revertError) { dom.canonicalIndexInput.value = "0"; } }
+        else if (rawValue.trim() === "") { try { await appStateWasm.setCanonicalIndex(0n); updateAllViews("canonicalIndexInput (empty treated as 0)"); } catch (e) { showError(`Error setting Canonical Index from empty input: ${e.message || e}`); } }
     }, CONFIG.DEBOUNCE_DELAY_INPUT));
     
-    function handleBitDepthChange(newBitDepth) {
-        if (isNaN(newBitDepth) || newBitDepth < CONFIG.MIN_BIT_DEPTH || newBitDepth > CONFIG.MAX_BIT_DEPTH) {
-            showError(`Invalid bit depth: ${newBitDepth}. Must be an integer between ${CONFIG.MIN_BIT_DEPTH} and ${CONFIG.MAX_BIT_DEPTH}.`);
-            let found = false;
-            for(let opt of dom.sequenceBitDepthSelect.options){
-                if(opt.value !== "custom" && parseInt(opt.value) === currentActiveBitDepth){
-                    dom.sequenceBitDepthSelect.value = opt.value;
-                    if(document.getElementById('customBitDepthInput')) dom.customBitDepthGroupContainer.innerHTML = '';
-                    found = true;
-                    break;
-                }
-            }
-            if(!found){ 
-                dom.sequenceBitDepthSelect.value = "custom";
-                if(!document.getElementById('customBitDepthInput')) createCustomBitDepthUI();
-                const customInput = document.getElementById('customBitDepthInput');
-                if(customInput) customInput.value = currentActiveBitDepth;
-            }
-            return; 
-        }
-        if (newBitDepth !== currentActiveBitDepth) {
-            currentActiveBitDepth = newBitDepth;
-            updateAllViews("bitDepthChange"); 
-        }
+    function handleBitDepthChange(newBitDepth) { /* ... same as before ... */ 
+        if (isNaN(newBitDepth) || newBitDepth < CONFIG.MIN_BIT_DEPTH || newBitDepth > CONFIG.MAX_BIT_DEPTH) { showError(`Invalid bit depth: ${newBitDepth}. Must be an integer between ${CONFIG.MIN_BIT_DEPTH} and ${CONFIG.MAX_BIT_DEPTH}.`); let found = false; for(let opt of dom.sequenceBitDepthSelect.options){ if(opt.value !== "custom" && parseInt(opt.value) === currentActiveBitDepth){ dom.sequenceBitDepthSelect.value = opt.value; if(document.getElementById('customBitDepthInput')) dom.customBitDepthGroupContainer.innerHTML = ''; found = true; break; } } if(!found){ dom.sequenceBitDepthSelect.value = "custom"; if(!document.getElementById('customBitDepthInput')) createCustomBitDepthUI(); const customInput = document.getElementById('customBitDepthInput'); if(customInput) customInput.value = currentActiveBitDepth; } return; }
+        if (newBitDepth !== currentActiveBitDepth) { currentActiveBitDepth = newBitDepth; updateAllViews("bitDepthChange"); }
     }
 
-    dom.sequenceBitDepthSelect.addEventListener('change', () => {
-        clearError();
-        const selectedValue = dom.sequenceBitDepthSelect.value;
-        if (selectedValue === "custom") {
-            if (!document.getElementById('customBitDepthInput')) { 
-                createCustomBitDepthUI(); 
-            }
-            const customInput = document.getElementById('customBitDepthInput'); 
-            if(customInput) { 
-                 customInput.value = currentActiveBitDepth; 
-                 customInput.focus();
-            }
-        } else {
-            dom.customBitDepthGroupContainer.innerHTML = ''; 
-            handleBitDepthChange(parseInt(selectedValue, 10));
-        }
+    dom.sequenceBitDepthSelect.addEventListener('change', () => { /* ... same as before ... */ 
+        clearError(); const selectedValue = dom.sequenceBitDepthSelect.value;
+        if (selectedValue === "custom") { if (!document.getElementById('customBitDepthInput')) { createCustomBitDepthUI(); } const customInput = document.getElementById('customBitDepthInput'); if(customInput) { customInput.value = currentActiveBitDepth; customInput.focus(); } }
+        else { dom.customBitDepthGroupContainer.innerHTML = ''; handleBitDepthChange(parseInt(selectedValue, 10)); }
     });
     
-    dom.copySequenceButton.addEventListener('click', async () => { 
-        clearError();
-        const sequenceString = dom.sequenceOutputDisplay.value;
-        if (!sequenceString && dom.sequenceCanonicalLengthDisplay.textContent === "0") {
-        } else if (!sequenceString) {
-             showError('Cannot copy: Sequence data is not available or in an error state.');
-             return;
-        }
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            try {
-                await navigator.clipboard.writeText(sequenceString);
-                const originalText = dom.copySequenceButton.textContent;
-                dom.copySequenceButton.textContent = 'Copied!';
-                dom.copySequenceButton.disabled = true;
-                setTimeout(() => { 
-                    dom.copySequenceButton.textContent = originalText; 
-                    dom.copySequenceButton.disabled = false;
-                }, 1500);
-            } catch (err) {
-                showError('Failed to copy sequence to clipboard: ' + (err.message || err));
-            }
-        } else {
-            showError('Clipboard API is not available in this browser. Try manual copy.');
-        }
+    dom.copySequenceButton.addEventListener('click', async () => { /* ... same as before ... */ 
+        clearError(); const sequenceString = dom.sequenceOutputDisplay.value; if (!sequenceString && dom.sequenceCanonicalLengthDisplay.textContent === "0") {} else if (!sequenceString) { showError('Cannot copy: Sequence data is not available or in an error state.'); return; }
+        if (navigator.clipboard && navigator.clipboard.writeText) { try { await navigator.clipboard.writeText(sequenceString); const originalText = dom.copySequenceButton.textContent; dom.copySequenceButton.textContent = 'Copied!'; dom.copySequenceButton.disabled = true; setTimeout(() => { dom.copySequenceButton.textContent = originalText; dom.copySequenceButton.disabled = false; }, 1500); } catch (err) { showError('Failed to copy sequence to clipboard: ' + (err.message || err)); } } else { showError('Clipboard API is not available in this browser. Try manual copy.'); }
     });
-    
-    dom.saveCanonicalIndexButton.addEventListener('click', async () => { 
-        if (!appStateWasm) { showError("Application not fully loaded."); return; }
-        clearError();
-        try {
-            const indexString = (await appStateWasm.getCanonicalIndex()).toString();
-            const blob = new Blob([indexString], { type: 'text/plain;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `canonical_index_${Date.now()}.txt`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(link.href);
-        } catch (e) {
-            showError('Failed to save Canonical Index: ' + (e.message || e));
-        }
+    dom.saveCanonicalIndexButton.addEventListener('click', async () => { /* ... same as before ... */ 
+        if (!appStateWasm) { showError("Application not fully loaded."); return; } clearError(); try { const indexString = (await appStateWasm.getCanonicalIndex()).toString(); const blob = new Blob([indexString], { type: 'text/plain;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `canonical_index_${Date.now()}.txt`; document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href); } catch (e) { showError('Failed to save Canonical Index: ' + (e.message || e)); }
     });
-
-    dom.loadCanonicalIndexInput.addEventListener('change', async (event) => { 
-        if (!appStateWasm) { showError("Application not fully loaded."); event.target.value = null; return; }
-        clearError();
-        const file = event.target.files[0];
-        if (!file) { event.target.value = null; return; }
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const text = e.target.result;
-                const newIndex = safeParseBigInt(text);
-                if (newIndex === null) { 
-                     throw new Error("File content could not be parsed into a valid BigInt.");
-                }
-                await appStateWasm.setCanonicalIndex(newIndex);
-                updateAllViews("loadCanonicalIndexFile");
-            } catch (err) {
-                showError('Failed to load Canonical Index from file: ' + (err.message || err));
-                try {
-                    const currentIndex = await appStateWasm.getCanonicalIndex();
-                    dom.canonicalIndexInput.value = currentIndex.toString();
-                } catch (_) { /* ignore */ }
-            } finally {
-                event.target.value = null; 
-            }
-        };
-        reader.onerror = () => {
-            showError('Error reading file.');
-            event.target.value = null;
-        };
-        reader.readAsText(file);
+    dom.loadCanonicalIndexInput.addEventListener('change', async (event) => { /* ... same as before ... */ 
+        if (!appStateWasm) { showError("Application not fully loaded."); event.target.value = null; return; } clearError(); const file = event.target.files[0]; if (!file) { event.target.value = null; return; } const reader = new FileReader();
+        reader.onload = async (e) => { try { const text = e.target.result; const newIndex = safeParseBigInt(text); if (newIndex === null) { throw new Error("File content could not be parsed into a valid BigInt."); } await appStateWasm.setCanonicalIndex(newIndex); updateAllViews("loadCanonicalIndexFile"); } catch (err) { showError('Failed to load Canonical Index from file: ' + (err.message || err)); try { const currentIndex = await appStateWasm.getCanonicalIndex(); dom.canonicalIndexInput.value = currentIndex.toString(); } catch (_) { /* ignore */ } } finally { event.target.value = null; } };
+        reader.onerror = () => { showError('Error reading file.'); event.target.value = null; }; reader.readAsText(file);
     });
 
     async function initializeApp() {
-        showLoader(true);
+        // Not using showLoader(true) here anymore.
         
         const initialSelectedBitDepthValue = dom.sequenceBitDepthSelect.value;
         if (initialSelectedBitDepthValue === "custom") {
@@ -470,13 +226,10 @@
         updateSequenceUIDisplaySettings(currentActiveBitDepth); 
 
         try {
-            // THIS IS THE MODIFIED PART FOR DEBUGGING init()
-            const initPromise = init();
-            console.log("Attempting to initialize WASM, promise is:", initPromise);
+            const initPromise = init(); // Still using the debugging line for init
+            console.log("Attempting to initialize WASM, promise is:", initPromise); // For debug
             await initPromise;
-            // END OF MODIFIED PART
-            
-            console.log("initializeApp: init() SHOULD HAVE resolved successfully here."); // Added for clarity
+            console.log("initializeApp: init() SHOULD HAVE resolved successfully here."); 
             
             appStateWasm = new AppState(); 
             console.log("initializeApp: AppState instantiated."); 
@@ -490,11 +243,10 @@
         } catch (e) {
             console.error("initializeApp: CRITICAL ERROR during initialization:", e); 
             showError(`Fatal Initialization Error: ${e.message || e.toString()}. Application may not work. Check console.`);
-        } finally { 
-             console.log("initializeApp: Entering finally block."); 
-             showLoader(false);
-             console.log("initializeApp: showLoader(false) called."); 
-        }
+        } 
+        // Not using showLoader(false) in a finally block anymore.
+        // The loadingOverlay div is hidden by default and we are not un-hiding it with JS.
+        console.log("initializeApp: Reached end of try/catch. If no errors, UI should be visible.");
     }
 
     window.addEventListener('load', initializeApp);
