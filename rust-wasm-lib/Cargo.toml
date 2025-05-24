@@ -1,0 +1,52 @@
+[package]
+name = "data_interconverter_wasm"
+version = "0.1.2" # Bumped version slightly
+edition = "2021"
+authors = ["Your Name <youremail@example.com>"] # TODO: Replace with your actual author info
+description = "WASM core for a data interconverter. Handles a Canonical Index and its conversion to numerical sequences and simple text."
+# repository = "https://github.com/yourusername/your-repo-name" # Optional: Add your repository URL
+# license = "MIT OR Apache-2.0" # Optional: Choose a license if you wish
+
+[lib]
+crate-type = ["cdylib", "rlib"] # cdylib for WASM, rlib for Rust tests/benchmarks
+
+[dependencies]
+# Core WASM bindings for interfacing with JavaScript.
+# Using the older specified versions for toolchain compatibility.
+wasm-bindgen = "0.2.69"
+js-sys = "0.3.45"       # Provides JavaScript primitive types and objects (e.g., JsBigInt).
+web-sys = { version = "0.3.45", features = [
+    'console'           # Enables `console.log` etc. from Rust via `web_sys::console`.
+] }
+
+# Arbitrary-precision integer arithmetic.
+num-bigint = "0.4"
+num-traits = "0.2" # Common numeric traits (Zero, One, Pow, ToPrimitive, etc.).
+
+# Error handling within Rust internal functions (AnyhowResult).
+anyhow = "1.0"
+
+# For static, lazily evaluated variables (like CHAR_TO_VAL, VAL_TO_CHAR HashMaps).
+lazy_static = "1.4.0" # <<< ADDED THIS LINE
+
+# Enhances panic messages in the browser console for easier debugging. Optional.
+console_error_panic_hook = { version = "0.1.7", optional = true }
+
+# Serialization framework and its bridge to wasm-bindgen JsValue.
+serde = { version = "1.0", features = ["derive"] } # "derive" for potential custom struct serialization.
+serde-wasm-bindgen = "0.4.5" # Essential for serializing Rust data (like Vec<u32>) to JsValue for JavaScript.
+
+[dev-dependencies]
+# Support for writing unit tests for WASM code.
+wasm-bindgen-test = "0.3.26" # Ensure this aligns with your wasm-bindgen version if issues arise.
+
+[features]
+# Default features to enable. `console_error_panic_hook` is useful for development.
+default = ["console_error_panic_hook"]
+
+# Optional: Profile for release builds (wasm-pack uses --release by default).
+# [profile.release]
+# opt-level = 's'
+# lto = true
+# strip = "symbols"
+# codegen-units = 1
