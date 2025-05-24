@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Interconverter (Core - CI, Seq, Text, JSON Instruct V1)</title>
+    <title>Data Interconverter (Core - CI, Seq, Text, JSON Analyzer)</title>
     <!-- NO CSS OR STYLE ATTRIBUTES -->
 </head>
 <body>
 
     <header>
-        <h1>Data Interconverter (Core - CI, Sequence, Text, JSON Instruct V1)</h1>
+        <h1>Data Interconverter (Core - CI, Sequence, Text, JSON Analyzer)</h1>
     </header>
 
     <hr>
@@ -18,31 +18,35 @@
         <table>
             <thead>
                 <tr>
-                    <th>Canonical Index (BigInt)</th>
+                    <th>Canonical Index (BigInt) & Instructions</th>
                     <th>Numerical Sequence (<span id="sequenceBitDepthDisplay">24</span>-bit u32)</th>
                     <th>Simple Text (<span id="textAlphabetDisplay">A-Z, Space</span>)</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td> <!-- Column 1: Canonical Index -->
+                    <td> <!-- Column 1: Canonical Index & Instructions -->
                         <p>The central arbitrary-precision non-negative integer.</p>
-                        <textarea id="canonicalIndexInput" rows="10" cols="40" placeholder="0"></textarea>
+                        <textarea id="canonicalIndexInput" rows="8" cols="45" placeholder="0"></textarea>
                         <br>
                         <small>Non-digits ignored.</small>
                         <br><br>
                         <button id="saveRawCanonicalIndexButton">Save Index as Text (.txt)</button>
-                        <br><br>
+                        <br>
                         <label for="loadRawCanonicalIndexInput">Load Index from Text (.txt):</label>
                         <input type="file" id="loadRawCanonicalIndexInput" accept=".txt,text/plain">
                         <hr>
                         <h4>JSON Instructions:</h4>
-                        <label for="loadJsonInstructionsInput">Load Instructions (.json):</label>
+                        <label for="loadJsonInstructionsInput">Load Instructions File (.json):</label>
                         <input type="file" id="loadJsonInstructionsInput" accept=".json,application/json">
                         <br>
                         <button id="executeJsonInstructionsButton">Execute JSON Instructions</button>
                         <br><br>
-                        <button id="saveJsonInstructionsButton">Save Current State as JSON Instructions</button>
+                        <button id="generateAndSaveRecommendedInstructionButton">Save Recommended Instruction (.json)</button>
+                        <br><br>
+                        <button id="analyzeCurrentCiButton">Analyze Current CI (Show Full Report)</button>
+                        <p><small>Analysis Report (Read-Only):</small></p>
+                        <textarea id="jsonAnalysisReportOutput" rows="10" cols="45" readonly placeholder="JSON Analysis Report appears here..."></textarea>
                     </td>
 
                     <td> <!-- Column 2: Numerical Sequence -->
@@ -85,15 +89,15 @@
 <script type="module">
     import init, { AppState } from './rust-wasm-lib/pkg/data_interconverter_wasm.js';
 
-    const CONFIG = { 
+    const CONFIG = { /* ... same as before ... */ 
         DEFAULT_SEQUENCE_BIT_DEPTH: 24, MIN_BIT_DEPTH: 1, MAX_BIT_DEPTH: 32, DEBOUNCE_DELAY_INPUT: 350,
         TEXT_ALPHABET_NAME: "A-Z, Space"
     };
 
-    const dom = {
+    const dom = { /* ... updated ... */
         canonicalIndexInput: document.getElementById('canonicalIndexInput'),
-        saveRawCanonicalIndexButton: document.getElementById('saveRawCanonicalIndexButton'), // Renamed
-        loadRawCanonicalIndexInput: document.getElementById('loadRawCanonicalIndexInput'), // Renamed
+        saveRawCanonicalIndexButton: document.getElementById('saveRawCanonicalIndexButton'), 
+        loadRawCanonicalIndexInput: document.getElementById('loadRawCanonicalIndexInput'), 
         
         sequenceBitDepthSelect: document.getElementById('sequenceBitDepthSelect'),
         customBitDepthGroupContainer: document.getElementById('customBitDepthGroupContainer'), 
@@ -108,7 +112,9 @@
 
         loadJsonInstructionsInput: document.getElementById('loadJsonInstructionsInput'), 
         executeJsonInstructionsButton: document.getElementById('executeJsonInstructionsButton'), 
-        saveJsonInstructionsButton: document.getElementById('saveJsonInstructionsButton'), // New
+        generateAndSaveRecommendedInstructionButton: document.getElementById('generateAndSaveRecommendedInstructionButton'), // New
+        analyzeCurrentCiButton: document.getElementById('analyzeCurrentCiButton'), // New
+        jsonAnalysisReportOutput: document.getElementById('jsonAnalysisReportOutput'), // New
         
         errorDisplay: document.getElementById('errorDisplay'),
         loadingOverlay: document.getElementById('loadingOverlay'), 
@@ -139,51 +145,70 @@
     if(dom.sequenceBitDepthSelect){dom.sequenceBitDepthSelect.addEventListener('change',()=>{clearError();const s=dom.sequenceBitDepthSelect.value;if(s==="custom"){if(!document.getElementById('customBitDepthInput')&&dom.customBitDepthGroupContainer){createCustomBitDepthUI();}const i=document.getElementById('customBitDepthInput');if(i){i.value=currentActiveBitDepth;i.focus();}}else{if(dom.customBitDepthGroupContainer)dom.customBitDepthGroupContainer.innerHTML='';handleBitDepthChange(parseInt(s,10));}}); }
     function handleBitDepthChange(n){if(isNaN(n)||n<CONFIG.MIN_BIT_DEPTH||n>CONFIG.MAX_BIT_DEPTH){showError(`InvalidBitDepth:${n}.Range ${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}.`);if(dom.sequenceBitDepthSelect){let f=!1;for(let o of dom.sequenceBitDepthSelect.options){if(o.value!=="custom"&&parseInt(o.value)===currentActiveBitDepth){dom.sequenceBitDepthSelect.value=o.value;if(dom.customBitDepthGroupContainer&&document.getElementById('customBitDepthInput'))dom.customBitDepthGroupContainer.innerHTML='';f=!0;break;}}if(!f){dom.sequenceBitDepthSelect.value="custom";if(dom.customBitDepthGroupContainer&&!document.getElementById('customBitDepthInput'))createCustomBitDepthUI();const i=document.getElementById('customBitDepthInput');if(i)i.value=currentActiveBitDepth;}}}if(n!==currentActiveBitDepth){currentActiveBitDepth=n;updateAllViews("bitDepthChange");}}
     
-    // Raw CI Save/Load
+    // Raw CI Save/Load (renamed from previous generic "save/load canonical index")
     if(dom.saveRawCanonicalIndexButton)dom.saveRawCanonicalIndexButton.addEventListener('click',async()=>{if(!appStateWasm){showError("App not loaded.");return;}clearError();try{const i=(await appStateWasm.getCanonicalIndex()).toString();const b=new Blob([i],{type:'text/plain;charset=utf-8'});const l=document.createElement('a');l.href=URL.createObjectURL(b);l.download=`ci_raw_${Date.now()}.txt`;document.body.appendChild(l);l.click();document.body.removeChild(l);URL.revokeObjectURL(l.href);}catch(e){showError('SaveFail:'+e.message);}});
     if(dom.loadRawCanonicalIndexInput)dom.loadRawCanonicalIndexInput.addEventListener('change',async(event)=>{if(!appStateWasm){showError("App not loaded.");event.target.value=null;return;}clearError();const f=event.target.files[0];if(!f){event.target.value=null;return;}const r=new FileReader();r.onload=async(e)=>{try{const t=e.target.result;const i=safeParseBigInt(t);if(i===null){throw new Error("Bad BigInt in file.");}await appStateWasm.setCanonicalIndex(i);updateAllViews("loadRawFile");}catch(err){showError('LoadFail:'+err.message);try{if(dom.canonicalIndexInput)dom.canonicalIndexInput.value=(await appStateWasm.getCanonicalIndex()).toString();}catch(_){}}finally{event.target.value=null;}};r.onerror=()=>{showError('FileReadErr.');event.target.value=null;};r.readAsText(f);});
     if(dom.copySequenceButton)dom.copySequenceButton.addEventListener('click',async()=>{clearError();const s=dom.sequenceOutputDisplay.value;if(!s&&dom.sequenceCanonicalLengthDisplay.textContent==="0"){}else if(!s){showError('No seq data.');return;}if(navigator.clipboard&&navigator.clipboard.writeText){try{await navigator.clipboard.writeText(s);const o=dom.copySequenceButton.textContent;dom.copySequenceButton.textContent='Copied!';setTimeout(()=>{dom.copySequenceButton.textContent='Copy Sequence';},1500);}catch(e){showError('CopyFail:'+e.message);}}else{showError('Clipboard n/a.');}});
 
     // JSON Instruction Handling
-    if (dom.loadJsonInstructionsInput) {
-        dom.loadJsonInstructionsInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if(file){selectedJsonFile=file;if(dom.executeJsonInstructionsButton)dom.executeJsonInstructionsButton.textContent=`Execute ${file.name.substring(0,20)}...`;}
-            else{selectedJsonFile=null;if(dom.executeJsonInstructionsButton)dom.executeJsonInstructionsButton.textContent=`Execute JSON Instructions`;}
-            event.target.value=null; 
-        });
-    }
-    if (dom.executeJsonInstructionsButton) {
-        dom.executeJsonInstructionsButton.addEventListener('click', async () => {
-            if(!appStateWasm){showError("WASM not ready.");return;}if(!selectedJsonFile){showError("No JSON file selected.");return;}clearError();
-            const reader=new FileReader();
-            reader.onload=async(e)=>{const jsonStr=e.target.result;try{console.log("Executing JSON:",jsonStr);const ci=await appStateWasm.executeJsonInstructionsToCI(jsonStr);await appStateWasm.setCanonicalIndex(ci);updateAllViews("json_executed");if(dom.executeJsonInstructionsButton)dom.executeJsonInstructionsButton.textContent=`Execute JSON Instructions`;selectedJsonFile=null;}catch(err){showError(`JSON Exec Err: ${err.message||err}`);console.error("JSON Exec Details:",err);}};
-            reader.onerror=()=>{showError("JSON Read Err.");};reader.readAsText(selectedJsonFile);
-        });
-    }
-    // New: Save JSON Instructions Button Handler
-    if (dom.saveJsonInstructionsButton) {
-        dom.saveJsonInstructionsButton.addEventListener('click', async () => {
+    if(dom.loadJsonInstructionsInput){dom.loadJsonInstructionsInput.addEventListener('change',(event)=>{const f=event.target.files[0];if(f){selectedJsonFile=f;if(dom.executeJsonInstructionsButton)dom.executeJsonInstructionsButton.textContent=`Execute ${f.name.substring(0,20)}...`;}else{selectedJsonFile=null;if(dom.executeJsonInstructionsButton)dom.executeJsonInstructionsButton.textContent=`Execute JSON Instructions`;}event.target.value=null;});}
+    if(dom.executeJsonInstructionsButton){dom.executeJsonInstructionsButton.addEventListener('click',async()=>{if(!appStateWasm){showError("WASM not ready.");return;}if(!selectedJsonFile){showError("No JSON file selected.");return;}clearError();const r=new FileReader();r.onload=async(e)=>{const j=e.target.result;try{console.log("Executing JSON:",j);const ci=await appStateWasm.executeJsonInstructionsToCI(j);await appStateWasm.setCanonicalIndex(ci);updateAllViews("json_executed");if(dom.executeJsonInstructionsButton)dom.executeJsonInstructionsButton.textContent=`Execute JSON Instructions`;selectedJsonFile=null;}catch(err){showError(`JSON Exec Err: ${err.message||err}`);console.error("JSON Exec Details:",err);}};r.onerror=()=>{showError("JSON Read Err.");};r.readAsText(selectedJsonFile);});}
+    
+    // New: Save Recommended Instruction and Analyze Button Handlers
+    if (dom.generateAndSaveRecommendedInstructionButton) {
+        dom.generateAndSaveRecommendedInstructionButton.addEventListener('click', async () => {
             if (!appStateWasm) { showError("WASM module not ready."); return; }
             clearError();
+            if(dom.jsonAnalysisReportOutput) dom.jsonAnalysisReportOutput.value = "Generating report..."; // Feedback
             try {
-                // For V0, the strategy string is ignored by Rust, but we pass something.
-                const jsonInstructionsString = await appStateWasm.generateJsonInstructionsForCurrentCI("V0_LITERAL_BIGINT");
-                
-                const blob = new Blob([jsonInstructionsString], { type: 'application/json;charset=utf-8' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `ci_instructions_${Date.now()}.json`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(link.href);
+                const reportString = await appStateWasm.generateJsonAnalysisReportForCurrentCI("V1_COMPOSER");
+                const reportObject = JSON.parse(reportString); // Parse the full report
+
+                if (dom.jsonAnalysisReportOutput) { // Display full report for debugging/info
+                    dom.jsonAnalysisReportOutput.value = JSON.stringify(reportObject, null, 2);
+                }
+
+                // Extract the recommended instruction and save that
+                if (reportObject && reportObject.recommended_instruction_for_save) {
+                    const recommendedInstructionString = JSON.stringify(reportObject.recommended_instruction_for_save, null, 2);
+                    const blob = new Blob([recommendedInstructionString], { type: 'application/json;charset=utf-8' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = `ci_recommended_instr_${Date.now()}.json`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                } else {
+                    showError("No recommended instruction found in analysis report.");
+                }
             } catch (err) {
                 showError(`Error generating/saving JSON instructions: ${err.message || err}`);
+                if(dom.jsonAnalysisReportOutput) dom.jsonAnalysisReportOutput.value = `Error: ${err.message || err}`;
                 console.error("Save JSON Instructions Error Details:", err);
             }
         });
     }
+
+    if (dom.analyzeCurrentCiButton) {
+        dom.analyzeCurrentCiButton.addEventListener('click', async () => {
+            if (!appStateWasm) { showError("WASM module not ready."); return; }
+            clearError();
+            if(dom.jsonAnalysisReportOutput) dom.jsonAnalysisReportOutput.value = "Analyzing...";
+            try {
+                const reportString = await appStateWasm.generateJsonAnalysisReportForCurrentCI("V1_ANALYSIS");
+                // The reportString is already pretty-printed JSON from Rust
+                if (dom.jsonAnalysisReportOutput) {
+                    dom.jsonAnalysisReportOutput.value = reportString;
+                }
+            } catch (err) {
+                showError(`Error during CI analysis: ${err.message || err}`);
+                 if(dom.jsonAnalysisReportOutput) dom.jsonAnalysisReportOutput.value = `Error: ${err.message || err}`;
+                console.error("Analyze CI Error Details:", err);
+            }
+        });
+    }
+
 
     async function initializeApp() {
         updateUIDisplaySettings(); 
