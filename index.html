@@ -103,11 +103,10 @@
 
     // Configuration constants for the application.
     const CONFIG = {
-        DEFAULT_SEQUENCE_BIT_DEPTH: 24, // Default bit depth for sequence elements.
-        MIN_BIT_DEPTH: 1,               // Minimum allowed bit depth for sequence elements.
-        MAX_BIT_DEPTH: 32,              // Maximum allowed bit depth for u32/Number sequence elements in this phase.
-                                        // This ensures precision as u32 values fit perfectly in JS Number.
-        DEBOUNCE_DELAY_INPUT: 350,      // Delay (ms) for debouncing input events to reduce processing frequency.
+        DEFAULT_SEQUENCE_BIT_DEPTH: 24, 
+        MIN_BIT_DEPTH: 1,               
+        MAX_BIT_DEPTH: 32,              
+        DEBOUNCE_DELAY_INPUT: 350,      
     };
 
     // Cache of frequently accessed DOM elements.
@@ -118,7 +117,7 @@
         
         sequenceBitDepthSelect: document.getElementById('sequenceBitDepthSelect'),
         customBitDepthGroupContainer: document.getElementById('customBitDepthGroupContainer'), 
-        sequenceBitDepthDisplay: document.getElementById('sequenceBitDepthDisplay'), // The <span> for dynamic bit depth text
+        sequenceBitDepthDisplay: document.getElementById('sequenceBitDepthDisplay'), 
         sequenceOutputDisplay: document.getElementById('sequenceOutputDisplay'), 
         sequenceCanonicalLengthDisplay: document.getElementById('sequenceCanonicalLengthDisplay'),
         copySequenceButton: document.getElementById('copySequenceButton'),
@@ -127,39 +126,24 @@
         loadingOverlay: document.getElementById('loadingOverlay'),
     };
 
-    let appStateWasm; // Instance of the WASM AppState.
-    let currentActiveBitDepth = CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH; // Tracks the currently active bit depth for sequences.
+    let appStateWasm; 
+    let currentActiveBitDepth = CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH; 
 
-    /**
-     * Displays an error message to the user.
-     * @param {string} message - The error message to display.
-     */
     function showError(message) {
         dom.errorDisplay.textContent = `ERROR: ${message}`;
         dom.errorDisplay.hidden = false;
         console.error("Application Error:", message);
     }
 
-    /** Clears any currently displayed error message. */
     function clearError() {
         dom.errorDisplay.textContent = '';
         dom.errorDisplay.hidden = true;
     }
 
-    /**
-     * Shows or hides the loading overlay.
-     * @param {boolean} show - True to show the loader, false to hide.
-     */
     function showLoader(show) {
         dom.loadingOverlay.hidden = !show;
     }
 
-    /**
-     * Creates a debounced version of a function that delays its execution.
-     * @param {Function} func - The function to debounce.
-     * @param {number} delay - The debounce delay in milliseconds.
-     * @returns {Function} The debounced function.
-     */
     function debounce(func, delay) { 
         let timeout; 
         return function (...args) { 
@@ -168,13 +152,6 @@
         };
     }
 
-    /**
-     * Safely parses a string into a JavaScript BigInt. Ignores non-digit characters.
-     * Returns 0n for empty or invalid numeric strings after stripping non-digits.
-     * Returns null if an unexpected error occurs during BigInt conversion.
-     * @param {string} str - The string to parse.
-     * @returns {bigint|null} The parsed BigInt, or 0n for invalid/empty, or null on error.
-     */
     function safeParseBigInt(str) { 
         try { 
             const s = String(str).trim(); 
@@ -186,16 +163,11 @@
         } 
     }
 
-    /**
-     * Updates UI elements related to sequence display settings based on the bit depth.
-     * @param {number} bitDepth - The current bit depth for sequence elements.
-     */
     function updateSequenceUIDisplaySettings(bitDepth) {
-        dom.sequenceBitDepthDisplay.textContent = bitDepth; // Update the span in the h2 title
-        const maxValBigInt = (2n ** BigInt(bitDepth)) - 1n; // Calculate max value for the given bit depth.
+        dom.sequenceBitDepthDisplay.textContent = bitDepth; 
+        const maxValBigInt = (2n ** BigInt(bitDepth)) - 1n; 
         dom.sequenceOutputDisplay.placeholder = `Sequence of ${bitDepth}-bit numbers (0 to ${maxValBigInt.toString()}) appears here. Each element is a JS Number.`;
         
-        // Update attributes of the custom bit depth input if it exists.
         const customInput = document.getElementById('customBitDepthInput');
         if (customInput) {
             customInput.min = CONFIG.MIN_BIT_DEPTH;
@@ -207,83 +179,71 @@
         }
     }
     
-    /**
-     * Retrieves and validates the bit depth from the custom input field.
-     * If invalid, shows an error and returns the current active bit depth.
-     * @returns {number} The validated bit depth or the current active bit depth.
-     */
     function getValidatedBitDepthFromCustomInput() {
         const customInput = document.getElementById('customBitDepthInput');
-        if (!customInput) return currentActiveBitDepth; // Should not happen if UI is built correctly.
+        if (!customInput) return currentActiveBitDepth;
 
         let bitDepth = parseInt(customInput.value, 10);
         if (isNaN(bitDepth) || bitDepth < CONFIG.MIN_BIT_DEPTH || bitDepth > CONFIG.MAX_BIT_DEPTH) {
             showError(`Custom bit depth must be an integer between ${CONFIG.MIN_BIT_DEPTH} and ${CONFIG.MAX_BIT_DEPTH}. Reverting to ${currentActiveBitDepth}.`);
-            customInput.value = currentActiveBitDepth; // Revert input field to the last valid depth.
+            customInput.value = currentActiveBitDepth; 
             return currentActiveBitDepth;
         }
         return bitDepth;
     }
 
-    /** Creates and injects the UI for custom bit depth input. */
     function createCustomBitDepthUI() {
         dom.customBitDepthGroupContainer.innerHTML = `
             <label for="customBitDepthInput">Custom (<span id="customBitDepthMinMaxLabel">${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}</span> bits):</label>
             <input type="number" id="customBitDepthInput" value="${currentActiveBitDepth}" size="5">
             <button id="applyCustomBitDepthButton">Apply</button>
         `;
-        // Add event listeners for dynamically created elements.
         document.getElementById('applyCustomBitDepthButton').addEventListener('click', applyCustomDepthAction);
         const customInputEl = document.getElementById('customBitDepthInput');
         customInputEl.addEventListener('keypress', (event) => {
             if (event.key === 'Enter') {
-                event.preventDefault(); // Prevent form submission if it were in a form.
+                event.preventDefault(); 
                 document.getElementById('applyCustomBitDepthButton').click();
             }
         });
-        customInputEl.addEventListener('input', () => { // Provide visual feedback for live validation.
+        customInputEl.addEventListener('input', () => { 
             const val = parseInt(customInputEl.value, 10);
             if (isNaN(val) || val < CONFIG.MIN_BIT_DEPTH || val > CONFIG.MAX_BIT_DEPTH) {
                 customInputEl.style.borderColor = 'red';
             } else {
-                customInputEl.style.borderColor = ''; // Reset border color.
+                customInputEl.style.borderColor = ''; 
             }
         });
-        updateSequenceUIDisplaySettings(currentActiveBitDepth); // Ensure min/max attributes are correctly set.
+        updateSequenceUIDisplaySettings(currentActiveBitDepth); 
     }
     
-    /** Handles the action of applying a custom bit depth. */
     function applyCustomDepthAction() { 
         clearError();
         const customDepth = getValidatedBitDepthFromCustomInput();
         
         let matchedPreset = false;
-        // Check if the custom depth matches any preset value in the select dropdown.
         for (let option of dom.sequenceBitDepthSelect.options) {
             if (option.value !== "custom" && parseInt(option.value, 10) === customDepth) {
-                dom.sequenceBitDepthSelect.value = option.value; // Select the matching preset.
-                dom.customBitDepthGroupContainer.innerHTML = ''; // Hide the custom input UI.
+                dom.sequenceBitDepthSelect.value = option.value; 
+                dom.customBitDepthGroupContainer.innerHTML = ''; 
                 matchedPreset = true;
                 break;
             }
         }
         
         if (!matchedPreset) {
-            // If it's a valid custom value not matching a preset, ensure "custom" option is selected.
             if (dom.sequenceBitDepthSelect.value !== "custom") {
                  dom.sequenceBitDepthSelect.value = "custom";
             }
-            // Ensure custom UI is visible and its input field reflects the applied custom depth.
             if (!document.getElementById('customBitDepthInput')) {
-                createCustomBitDepthUI(); // Create if not present.
+                createCustomBitDepthUI(); 
             }
             const customInput = document.getElementById('customBitDepthInput');
             if (customInput) customInput.value = customDepth;
         }
-        handleBitDepthChange(customDepth); // Process the bit depth change.
+        handleBitDepthChange(customDepth); 
     }
 
-    /** Fetches the canonical index from WASM and renders it in the UI. */
     async function renderCanonicalIndex() {
         if (!appStateWasm) { console.warn("WASM module not ready for renderCanonicalIndex"); return; }
         try {
@@ -292,31 +252,25 @@
         } catch (e) { showError(`Failed to render Canonical Index: ${e.message || e}`); }
     }
 
-    /** Fetches the sequence representation from WASM and renders it in the UI. */
     async function renderSequence() {
         if (!appStateWasm) { console.warn("WASM module not ready for renderSequence"); return; }
-        updateSequenceUIDisplaySettings(currentActiveBitDepth); // Ensures placeholder and title span are up-to-date
+        updateSequenceUIDisplaySettings(currentActiveBitDepth); 
         
         let sequenceToDisplay = []; 
         let displayedLength = 0;
 
         try {
-            // Calculate the minimum length required for the current index and bit depth.
             displayedLength = await appStateWasm.calculateMinSequenceLength(currentActiveBitDepth);
-            // Retrieve the sequence representation from WASM.
-            // For this phase (1-32 bit depth), this returns an Array of JS Numbers.
             sequenceToDisplay = await appStateWasm.getSequenceRepresentation(displayedLength, currentActiveBitDepth);
 
             if (!Array.isArray(sequenceToDisplay)) {
                 throw new Error("WASM module did not return a valid sequence array.");
             }
             
-            // Validate that array elements are numbers (expected for u32 elements).
             sequenceToDisplay = sequenceToDisplay.map((item, idx) => {
                 if (typeof item === 'number') {
                     return item; 
                 } else {
-                    // This case should ideally not be reached if WASM strictly returns Vec<u32> serialized.
                     console.warn(`[renderSequence] WASM returned non-Number at index ${idx}:`, item, typeof item);
                     throw new Error(`WASM returned an invalid data type for sequence element at index ${idx}. Expected Number.`);
                 }
@@ -324,16 +278,14 @@
 
         } catch (e) {
             const ciValue = safeParseBigInt(dom.canonicalIndexInput.value);
-            // Suppress "target sequence length of 0" error only if canonical index is actually 0.
             if (e.message && e.message.includes("target sequence length of 0") && ciValue === 0n && displayedLength === 0) {
-                clearError(); // This is an expected state for Canonical Index = 0.
+                clearError(); 
                 sequenceToDisplay = []; 
             } else {
                  showError(`Failed to render Sequence: ${e.message || e}`);
             }
-            // If an error occurred but a positive length was calculated, fill with placeholder 0s.
             if (displayedLength > 0 && sequenceToDisplay.length === 0) { 
-                sequenceToDisplay = Array(displayedLength).fill(0); // Use 0 as a neutral placeholder.
+                sequenceToDisplay = Array(displayedLength).fill(0); 
             }
         }
         
@@ -342,10 +294,8 @@
         dom.sequenceCanonicalLengthDisplay.textContent = displayedLength;
     }
 
-    /** Updates all active views based on the current state of the Canonical Index. */
     async function updateAllViews(triggerSource = "unknown") {
         if (!appStateWasm) { console.warn("WASM module not ready for updateAllViews"); return; }
-        // console.log(`Updating all views, triggered by: ${triggerSource}`); // For debugging.
         showLoader(true);
         clearError(); 
         try {
@@ -355,35 +305,32 @@
         finally { showLoader(false); }
     }
     
-    // Event listener for canonical index input changes.
     dom.canonicalIndexInput.addEventListener('input', debounce(async () => {
         if (!appStateWasm) { console.warn("WASM module not ready for canonicalIndexInput handler"); return; }
         clearError();
         const rawValue = dom.canonicalIndexInput.value;
         const newIndex = safeParseBigInt(rawValue);
 
-        if (newIndex !== null) { // A valid BigInt (or 0n for empty/non-numeric) was parsed.
+        if (newIndex !== null) { 
             try {
                 await appStateWasm.setCanonicalIndex(newIndex);     
                 updateAllViews("canonicalIndexInput");
             } catch (e) { 
                 showError(`Error setting Canonical Index: ${e.message || e}`);
-                // Attempt to revert to the last known valid index from WASM.
                 try {
                     const currentIndex = await appStateWasm.getCanonicalIndex();
                     dom.canonicalIndexInput.value = currentIndex.toString();
                 } catch (revertError) {
-                    dom.canonicalIndexInput.value = "0"; // Fallback if revert fails.
+                    dom.canonicalIndexInput.value = "0"; 
                 }
             }
         } else if (rawValue.trim() !== "" && !/^[0-9]*$/.test(rawValue.trim().replace(/[^0-9]/g, ''))) { 
-            // Input is not empty and contains invalid characters beyond what safeParseBigInt handles (e.g. just "-").
             showError("Invalid characters in Canonical Index. Only non-negative integers are allowed.");
             try { 
               const currentIndex = await appStateWasm.getCanonicalIndex();
               dom.canonicalIndexInput.value = currentIndex.toString();
             } catch(revertError) { dom.canonicalIndexInput.value = "0"; }
-        } else if (rawValue.trim() === "") { // Treat empty input as 0.
+        } else if (rawValue.trim() === "") { 
             try {
                 await appStateWasm.setCanonicalIndex(0n);
                 updateAllViews("canonicalIndexInput (empty treated as 0)");
@@ -391,14 +338,9 @@
         }
     }, CONFIG.DEBOUNCE_DELAY_INPUT));
     
-    /**
-     * Handles changes to the sequence element bit depth.
-     * @param {number} newBitDepth - The new bit depth to apply.
-     */
     function handleBitDepthChange(newBitDepth) {
         if (isNaN(newBitDepth) || newBitDepth < CONFIG.MIN_BIT_DEPTH || newBitDepth > CONFIG.MAX_BIT_DEPTH) {
             showError(`Invalid bit depth: ${newBitDepth}. Must be an integer between ${CONFIG.MIN_BIT_DEPTH} and ${CONFIG.MAX_BIT_DEPTH}.`);
-            // Revert UI selection to currentActiveBitDepth if possible.
             let found = false;
             for(let opt of dom.sequenceBitDepthSelect.options){
                 if(opt.value !== "custom" && parseInt(opt.value) === currentActiveBitDepth){
@@ -408,7 +350,7 @@
                     break;
                 }
             }
-            if(!found){ // If currentActiveBitDepth was a custom value not in presets
+            if(!found){ 
                 dom.sequenceBitDepthSelect.value = "custom";
                 if(!document.getElementById('customBitDepthInput')) createCustomBitDepthUI();
                 const customInput = document.getElementById('customBitDepthInput');
@@ -422,7 +364,6 @@
         }
     }
 
-    // Event listener for sequence bit depth selection changes.
     dom.sequenceBitDepthSelect.addEventListener('change', () => {
         clearError();
         const selectedValue = dom.sequenceBitDepthSelect.value;
@@ -441,11 +382,10 @@
         }
     });
     
-    dom.copySequenceButton.addEventListener('click', async () => { /* Code from previous correct version */
+    dom.copySequenceButton.addEventListener('click', async () => { 
         clearError();
         const sequenceString = dom.sequenceOutputDisplay.value;
         if (!sequenceString && dom.sequenceCanonicalLengthDisplay.textContent === "0") {
-            // Allow copying empty string for genuinely empty sequence
         } else if (!sequenceString) {
              showError('Cannot copy: Sequence data is not available or in an error state.');
              return;
@@ -457,7 +397,7 @@
                 dom.copySequenceButton.textContent = 'Copied!';
                 dom.copySequenceButton.disabled = true;
                 setTimeout(() => { 
-                    dom.copySequenceButton.textContent = originalText; // Revert to original text
+                    dom.copySequenceButton.textContent = originalText; 
                     dom.copySequenceButton.disabled = false;
                 }, 1500);
             } catch (err) {
@@ -468,7 +408,7 @@
         }
     });
     
-    dom.saveCanonicalIndexButton.addEventListener('click', async () => { /* Code from previous correct version */
+    dom.saveCanonicalIndexButton.addEventListener('click', async () => { 
         if (!appStateWasm) { showError("Application not fully loaded."); return; }
         clearError();
         try {
@@ -486,7 +426,7 @@
         }
     });
 
-    dom.loadCanonicalIndexInput.addEventListener('change', async (event) => { /* Code from previous correct version */
+    dom.loadCanonicalIndexInput.addEventListener('change', async (event) => { 
         if (!appStateWasm) { showError("Application not fully loaded."); event.target.value = null; return; }
         clearError();
         const file = event.target.files[0];
@@ -518,7 +458,6 @@
         reader.readAsText(file);
     });
 
-    /** Initializes the application: loads WASM, sets up initial state and UI. */
     async function initializeApp() {
         showLoader(true);
         
@@ -531,22 +470,33 @@
         updateSequenceUIDisplaySettings(currentActiveBitDepth); 
 
         try {
-            // THE CHANGED LINE IS HERE: init() is called with no arguments.
-            await init(); 
-            // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            // THIS IS THE MODIFIED PART FOR DEBUGGING init()
+            const initPromise = init();
+            console.log("Attempting to initialize WASM, promise is:", initPromise);
+            await initPromise;
+            // END OF MODIFIED PART
+            
+            console.log("initializeApp: init() SHOULD HAVE resolved successfully here."); // Added for clarity
             
             appStateWasm = new AppState(); 
+            console.log("initializeApp: AppState instantiated."); 
+            
             await appStateWasm.setCanonicalIndex(0n); 
+            console.log("initializeApp: Initial setCanonicalIndex done."); 
+            
             await updateAllViews("initializeApp"); 
+            console.log("initializeApp: Initial updateAllViews done."); 
+
         } catch (e) {
-            showError(`Fatal Initialization Error: ${e.message || e.toString()}. The application might not work correctly.`);
-            console.error("Full initialization error details:", e);
+            console.error("initializeApp: CRITICAL ERROR during initialization:", e); 
+            showError(`Fatal Initialization Error: ${e.message || e.toString()}. Application may not work. Check console.`);
         } finally { 
+             console.log("initializeApp: Entering finally block."); 
              showLoader(false);
+             console.log("initializeApp: showLoader(false) called."); 
         }
     }
 
-    // Start the application once the window is loaded.
     window.addEventListener('load', initializeApp);
 </script>
 
