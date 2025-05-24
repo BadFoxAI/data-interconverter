@@ -399,7 +399,6 @@
         if (isNaN(newBitDepth) || newBitDepth < CONFIG.MIN_BIT_DEPTH || newBitDepth > CONFIG.MAX_BIT_DEPTH) {
             showError(`Invalid bit depth: ${newBitDepth}. Must be an integer between ${CONFIG.MIN_BIT_DEPTH} and ${CONFIG.MAX_BIT_DEPTH}.`);
             // Revert UI selection to currentActiveBitDepth if possible.
-            // Find option that matches currentActiveBitDepth and set it, or set to custom if no match.
             let found = false;
             for(let opt of dom.sequenceBitDepthSelect.options){
                 if(opt.value !== "custom" && parseInt(opt.value) === currentActiveBitDepth){
@@ -419,7 +418,6 @@
         }
         if (newBitDepth !== currentActiveBitDepth) {
             currentActiveBitDepth = newBitDepth;
-            // updateSequenceUIDisplaySettings(currentActiveBitDepth); // Called by renderSequence now
             updateAllViews("bitDepthChange"); 
         }
     }
@@ -429,33 +427,29 @@
         clearError();
         const selectedValue = dom.sequenceBitDepthSelect.value;
         if (selectedValue === "custom") {
-            if (!document.getElementById('customBitDepthInput')) { // Only create if not already there
+            if (!document.getElementById('customBitDepthInput')) { 
                 createCustomBitDepthUI(); 
             }
             const customInput = document.getElementById('customBitDepthInput'); 
-            if(customInput) { // Should always exist now
-                 customInput.value = currentActiveBitDepth; // Pre-fill with current depth.
+            if(customInput) { 
+                 customInput.value = currentActiveBitDepth; 
                  customInput.focus();
             }
         } else {
-            dom.customBitDepthGroupContainer.innerHTML = ''; // Clear custom UI.
+            dom.customBitDepthGroupContainer.innerHTML = ''; 
             handleBitDepthChange(parseInt(selectedValue, 10));
         }
     });
     
-    // Event listener for copying sequence to clipboard.
-    dom.copySequenceButton.addEventListener('click', async () => {
+    dom.copySequenceButton.addEventListener('click', async () => { /* Code from previous correct version */
         clearError();
         const sequenceString = dom.sequenceOutputDisplay.value;
         if (!sequenceString && dom.sequenceCanonicalLengthDisplay.textContent === "0") {
-            // If string is empty AND length is 0, it's genuinely an empty sequence.
-            // Allow copying empty string or show a gentle message.
-            // For now, let it try to copy empty string.
-        } else if (!sequenceString) { // String is empty but length implies there should be data (error state)
+            // Allow copying empty string for genuinely empty sequence
+        } else if (!sequenceString) {
              showError('Cannot copy: Sequence data is not available or in an error state.');
              return;
         }
-
         if (navigator.clipboard && navigator.clipboard.writeText) {
             try {
                 await navigator.clipboard.writeText(sequenceString);
@@ -463,7 +457,7 @@
                 dom.copySequenceButton.textContent = 'Copied!';
                 dom.copySequenceButton.disabled = true;
                 setTimeout(() => { 
-                    dom.copySequenceButton.textContent = originalText;
+                    dom.copySequenceButton.textContent = originalText; // Revert to original text
                     dom.copySequenceButton.disabled = false;
                 }, 1500);
             } catch (err) {
@@ -474,8 +468,7 @@
         }
     });
     
-    // Event listener for saving canonical index to a file.
-    dom.saveCanonicalIndexButton.addEventListener('click', async () => {
+    dom.saveCanonicalIndexButton.addEventListener('click', async () => { /* Code from previous correct version */
         if (!appStateWasm) { showError("Application not fully loaded."); return; }
         clearError();
         try {
@@ -493,13 +486,11 @@
         }
     });
 
-    // Event listener for loading canonical index from a file.
-    dom.loadCanonicalIndexInput.addEventListener('change', async (event) => {
+    dom.loadCanonicalIndexInput.addEventListener('change', async (event) => { /* Code from previous correct version */
         if (!appStateWasm) { showError("Application not fully loaded."); event.target.value = null; return; }
         clearError();
         const file = event.target.files[0];
         if (!file) { event.target.value = null; return; }
-
         const reader = new FileReader();
         reader.onload = async (e) => {
             try {
@@ -508,23 +499,16 @@
                 if (newIndex === null) { 
                      throw new Error("File content could not be parsed into a valid BigInt.");
                 }
-                // safeParseBigInt already handles stripping non-digits, so sign check is main validation here.
-                // If BigInt(numericStr) somehow produced negative from positive digits, it's a JS error.
-                // We only allow non-negative BigInts. A raw "-" sign would be stripped by numericStr.
-                // A BigInt from string "..." can't be negative unless the string has "-".
-                // Our safeParseBigInt strips "-" so it only produces non-negative BigInts or 0n.
-                // So no explicit negative check is needed here IF safeParseBigInt works as intended.
-
                 await appStateWasm.setCanonicalIndex(newIndex);
                 updateAllViews("loadCanonicalIndexFile");
             } catch (err) {
                 showError('Failed to load Canonical Index from file: ' + (err.message || err));
-                try { // Attempt to revert to current WASM state on error
+                try {
                     const currentIndex = await appStateWasm.getCanonicalIndex();
                     dom.canonicalIndexInput.value = currentIndex.toString();
-                } catch (_) { /* ignore error during error handling */ }
+                } catch (_) { /* ignore */ }
             } finally {
-                event.target.value = null; // Reset file input
+                event.target.value = null; 
             }
         };
         reader.onerror = () => {
@@ -534,7 +518,6 @@
         reader.readAsText(file);
     });
 
-
     /** Initializes the application: loads WASM, sets up initial state and UI. */
     async function initializeApp() {
         showLoader(true);
@@ -542,18 +525,18 @@
         const initialSelectedBitDepthValue = dom.sequenceBitDepthSelect.value;
         if (initialSelectedBitDepthValue === "custom") {
             currentActiveBitDepth = CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH; 
-            // createCustomBitDepthUI(); // Don't create custom UI on init unless explicitly chosen
         } else {
             currentActiveBitDepth = parseInt(initialSelectedBitDepthValue, 10);
         }
-        updateSequenceUIDisplaySettings(currentActiveBitDepth); // Set initial placeholder and title span
+        updateSequenceUIDisplaySettings(currentActiveBitDepth); 
 
         try {
-            // Ensure the WASM file path is correct relative to index.html
-            // If pkg is in a 'rust-wasm-lib' subdir: './rust-wasm-lib/pkg/data_interconverter_wasm_bg.wasm'
-            await init('./rust-wasm-lib/pkg/data_interconverter_wasm_bg.wasm'); 
+            // THE CHANGED LINE IS HERE: init() is called with no arguments.
+            await init(); 
+            // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            
             appStateWasm = new AppState(); 
-            await appStateWasm.setCanonicalIndex(0n); // Ensure it starts at 0 in WASM
+            await appStateWasm.setCanonicalIndex(0n); 
             await updateAllViews("initializeApp"); 
         } catch (e) {
             showError(`Fatal Initialization Error: ${e.message || e.toString()}. The application might not work correctly.`);
