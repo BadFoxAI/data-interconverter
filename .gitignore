@@ -1,6 +1,0 @@
-# Rust/Cargo build artifacts to ignore
-/target/
-rust-wasm-lib/target/
-
-# OS specific
-.DS_Store
