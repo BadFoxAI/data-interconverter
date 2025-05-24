@@ -3,46 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Interconverter (Core - u32 Sequences)</title>
+    <title>Data Interconverter (Pure HTML)</title>
 </head>
 <body>
 
     <header>
-        <h1>Data Interconverter (Core - u32 Sequences)</h1>
+        <h1>Data Interconverter (Pure HTML Core)</h1>
     </header>
 
     <hr>
 
     <main>
-        <!-- Using a simple table for basic two-column layout without CSS -->
+        <!-- Using a simple table for basic two-column layout -->
         <table>
             <tr>
-                <td style="vertical-align:top; padding-right: 20px; padding-bottom: 20px;">
-                    <h2>Input & Controls</h2>
-                    <div>
-                        <label for="canonicalIndexInput">Canonical Index (BigInt):</label><br>
-                        <textarea id="canonicalIndexInput" rows="5" cols="70" placeholder="0"></textarea><br>
-                        <small>Arbitrary-precision non-negative integer. Non-digits are ignored.</small>
-                    </div>
+                <td> <!-- Left Column -->
+                    <h2>Canonical Index (BigInt)</h2>
+                    <textarea id="canonicalIndexInput" rows="10" cols="70" placeholder="0"></textarea>
                     <br>
-                    <div>
-                        <label for="textInput">Text Data:</label><br>
-                        <textarea id="textInput" rows="5" cols="70" placeholder="Enter text..."></textarea><br>
-                        <small>Uses a programmer-focused character set (<span id="charSetSizeDisplay">0</span> chars).</small>
-                    </div>
-                    <br>
-                    <div>
-                        <button id="saveCanonicalIndexButton">Save Canonical Index to File</button> <br><br>
-                        <label for="loadCanonicalIndexInput">Load Canonical Index from File:</label>
-                        <input type="file" id="loadCanonicalIndexInput" accept=".txt,text/plain">
-                    </div>
+                    <small>Input an arbitrary-precision non-negative integer. Non-digits are ignored.</small>
+                    <br><br>
+                    <button id="saveCanonicalIndexButton">Save Canonical Index to File</button>
+                    <br><br>
+                    <label for="loadCanonicalIndexInput">Load Canonical Index from File:</label>
+                    <input type="file" id="loadCanonicalIndexInput" accept=".txt,text/plain">
                 </td>
 
-                <td style="vertical-align:top; padding-bottom: 20px;">
+                <td> <!-- Right Column -->
                     <h2>Numerical Sequence (<span id="sequenceBitDepthDisplay">24</span>-bit elements)</h2>
                     
                     <div>
-                        <label for="sequenceBitDepthSelect">Preset Element Bit Depth:</label>
+                        <label for="sequenceBitDepthSelect">View Element Bit Depth:</label>
                         <select id="sequenceBitDepthSelect">
                             <option value="1">1-bit (0 to 1)</option>
                             <option value="2">2-bit (0 to 3)</option>
@@ -52,228 +43,148 @@
                             <option value="16">16-bit (0 to 65,535)</option>
                             <option value="24" selected>24-bit (0 to 16,777,215)</option>
                             <option value="32">32-bit (0 to 4,294,967,295)</option>
+                            <option value="48">48-bit</option>
+                            <option value="56">56-bit</option>
+                            <option value="64">64-bit</option>
                             <option value="custom">Custom...</option> 
                         </select>
                     </div>
 
-                    <div id="customBitDepthGroup" style="display: none; margin-top:10px;">
-                        <label for="customBitDepthInput">Custom Bit Depth (<span id="customBitDepthMinMaxLabel">1-32</span>):</label>
-                        <input type="number" id="customBitDepthInput" min="1" max="32" value="24" style="width: 60px;">
-                        <button id="applyCustomBitDepthButton">Apply</button>
+                    <div id="customBitDepthGroupContainer"> <!-- Container for custom input -->
+                        <!-- This div will be shown/hidden by JS -->
                     </div>
 
-                    <p style="margin-top:10px;">Sequence (Input / Output):</p>
-                    <textarea id="sequenceInput" rows="5" cols="70" placeholder="e.g., ..."></textarea>
+                    <p>Sequence Output (Read-Only):</p>
+                    <textarea id="sequenceOutputDisplay" rows="10" cols="70" readonly placeholder="Sequence appears here..."></textarea>
                     <p>Canonical Length: <span id="sequenceCanonicalLengthDisplay">0</span> elements</p>
-                    <button id="copySequenceButton" style="margin-right: 10px;">Copy Sequence</button>
-                    <button id="saveSequenceRawBinaryButton">Save Sequence as Binary</button>
-                    <br><br>
-                    <label for="loadSequenceRawBinaryInput">Load Sequence from Binary:</label>
-                    <input type="file" id="loadSequenceRawBinaryInput" accept=".seqbin,.bin,.dat">
-                    <br>
-                    <small>Filename should contain _N<length>_B<bit_depth> metadata (e.g., _B24).</small>
+                    <button id="copySequenceButton">Copy Sequence to Clipboard</button>
                 </td>
             </tr>
         </table>
     </main>
 
     <hr>
-    <!-- Subtle error display -->
-    <div id="errorDisplay" style="margin-top: 15px; padding: 8px; background-color: #fdd; border-left: 5px solid #f00; display: none;"></div>
-    <div id="loadingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(200,200,200,0.7); color:black; text-align:center; padding-top:40vh; font-size:2em; border: 1px solid black;">Loading...</div>
+    <div id="errorDisplay"></div> <!-- Errors will appear here as plain text -->
+    <div id="loadingOverlay">Loading...</div> <!-- Basic loading text -->
 
 <script type="module">
     import init, { AppState } from './rust-wasm-lib/pkg/data_interconverter_wasm.js';
 
     const CONFIG = {
-        CHAR_SET_STRING: " \n\t\r" + "abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "0123456789" + "!\"#$%&'()*+,-./:;<=>?@" + "[\\]^_`{|}~" + "←↑→↓↔" + "∑√≈≠≤≥÷±∞" + "€₹₽£¥₩" + "¡¢£¤¥¦§¨©ª«¬®¯°±²³´µ¶·¸¹º»¼½¾¿" + "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß" + "àáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ",
         DEFAULT_SEQUENCE_BIT_DEPTH: 24,
         MIN_BIT_DEPTH: 1, 
-        MAX_BIT_DEPTH: 32, // Max bit depth for u32 elements
+        MAX_BIT_DEPTH: 256, 
         DEBOUNCE_DELAY_INPUT: 350, 
-        DEBOUNCE_DELAY_TEXT_AREA: 400, // Keep for text input if it's there
-        LOADER_FLICKER_THRESHOLD: 300,
+        LOADER_FLICKER_THRESHOLD: 300, // Though loader is very basic now
     };
-    const CHAR_SET_Array = Array.from(new Set(CONFIG.CHAR_SET_STRING.split(''))).sort();
 
     const dom = {
         canonicalIndexInput: document.getElementById('canonicalIndexInput'),
-        textInput: document.getElementById('textInput'),
-        charSetSizeDisplay: document.getElementById('charSetSizeDisplay'),
         saveCanonicalIndexButton: document.getElementById('saveCanonicalIndexButton'),
         loadCanonicalIndexInput: document.getElementById('loadCanonicalIndexInput'),
         
         sequenceBitDepthSelect: document.getElementById('sequenceBitDepthSelect'),
-        customBitDepthGroup: document.getElementById('customBitDepthGroup'), 
-        customBitDepthInput: document.getElementById('customBitDepthInput'), 
-        applyCustomBitDepthButton: document.getElementById('applyCustomBitDepthButton'),
-        customBitDepthMinMaxLabel: document.getElementById('customBitDepthMinMaxLabel'),
+        customBitDepthGroupContainer: document.getElementById('customBitDepthGroupContainer'), 
+        // customBitDepthInput and applyCustomBitDepthButton will be created dynamically
         sequenceBitDepthDisplay: document.getElementById('sequenceBitDepthDisplay'),
-        sequenceInput: document.getElementById('sequenceInput'), // For input AND output
+        sequenceOutputDisplay: document.getElementById('sequenceOutputDisplay'), 
         sequenceCanonicalLengthDisplay: document.getElementById('sequenceCanonicalLengthDisplay'),
         copySequenceButton: document.getElementById('copySequenceButton'),
-        saveSequenceRawBinaryButton: document.getElementById('saveSequenceRawBinaryButton'),
-        loadSequenceRawBinaryInput: document.getElementById('loadSequenceRawBinaryInput'),
         
         errorDisplay: document.getElementById('errorDisplay'),
         loadingOverlay: document.getElementById('loadingOverlay'),
     };
 
+    // Hide elements initially via JS, as no CSS
+    dom.customBitDepthGroupContainer.innerHTML = ''; // Clear it initially
+    dom.loadingOverlay.hidden = true;
+    dom.errorDisplay.hidden = true;
+
+
     let appStateWasm;
-    let sourceOfChange = 'initialLoad';
-    let lastDirectInputSequence = null; // Will store array of Numbers
     let currentActiveBitDepth = CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH;
 
     function showError(message) {
         dom.errorDisplay.textContent = `ERROR: ${message}`;
-        dom.errorDisplay.style.display = 'block'; // Make it visible
+        dom.errorDisplay.hidden = false;
         console.error("Application Error:", message);
-        // Optional: auto-hide after some time
-        // setTimeout(() => { dom.errorDisplay.style.display = 'none'; }, 7000);
     }
     function clearError() {
         dom.errorDisplay.textContent = '';
-        dom.errorDisplay.style.display = 'none'; // Hide it
+        dom.errorDisplay.hidden = true;
     }
 
-    function showLoader(show) { dom.loadingOverlay.style.display = show ? 'block' : 'none'; }
-    function debounce(func, delay) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => func(...a), delay); }; }
-    function safeParseBigInt(str) { try { const s=String(str); const nS=s.replace(/[^0-9]/g,''); return nS===""?0n:BigInt(nS); } catch(e){return null;} }
+    function showLoader(show) {
+        dom.loadingOverlay.hidden = !show;
+    }
+    function debounce(func, delay) { 
+        let timeout; 
+        return function (...args) { 
+            clearTimeout(timeout); 
+            timeout = setTimeout(() => func.apply(this, args), delay); 
+        };
+    }
+    function safeParseBigInt(str) { 
+        try { 
+            const s = String(str); 
+            const numericStr = s.replace(/[^0-9]/g, ''); 
+            return numericStr === "" ? 0n : BigInt(numericStr); 
+        } catch (e) { return null; } 
+    }
 
     function updateSequenceUIDisplaySettings(bitDepth) {
         dom.sequenceBitDepthDisplay.textContent = bitDepth;
-        const maxVal = (2 ** bitDepth) - 1;
-        dom.sequenceInput.placeholder = `e.g., ${maxVal}, ${maxVal > 0 ? Math.floor(maxVal / 2) : 0}, ... (0 to ${maxVal})`;
-        dom.customBitDepthInput.max = CONFIG.MAX_BIT_DEPTH; 
-        dom.customBitDepthMinMaxLabel.textContent = `${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}`;
+        const maxValBigInt = (2n ** BigInt(bitDepth)) - 1n;
+        dom.sequenceOutputDisplay.placeholder = `Sequence of ${bitDepth}-bit numbers (0 to ${maxValBigInt}) appears here.`;
+        
+        // Update custom input attributes if it exists
+        const customInput = document.getElementById('customBitDepthInput');
+        if (customInput) {
+            customInput.max = CONFIG.MAX_BIT_DEPTH;
+        }
+        const customLabelSpan = document.getElementById('customBitDepthMinMaxLabel');
+        if (customLabelSpan) {
+            customLabelSpan.textContent = `${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}`;
+        }
     }
     
     function getValidatedBitDepthFromCustomInput() {
-        let bitDepth = parseInt(dom.customBitDepthInput.value, 10);
+        const customInput = document.getElementById('customBitDepthInput');
+        if (!customInput) return currentActiveBitDepth; // Should not happen if UI is built
+
+        let bitDepth = parseInt(customInput.value, 10);
         if (isNaN(bitDepth) || bitDepth < CONFIG.MIN_BIT_DEPTH || bitDepth > CONFIG.MAX_BIT_DEPTH) {
             showError(`Custom bit depth must be ${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}. Reverting to ${currentActiveBitDepth}.`);
-            dom.customBitDepthInput.value = currentActiveBitDepth;
+            customInput.value = currentActiveBitDepth;
             return currentActiveBitDepth;
         }
         return bitDepth;
     }
 
-    async function renderCanonicalIndex() {
-        if (sourceOfChange !== 'indexInput') {
-            try {
-                const indexJsBigInt = await appStateWasm.getCanonicalIndex(); 
-                dom.canonicalIndexInput.value = indexJsBigInt.toString();
-            } catch (e) { showError(`Render Index: ${e.message || e}`); }
-        }
-    }
-    async function renderText() {
-        if (sourceOfChange !== 'textInput') {
-            try {
-                const text = await appStateWasm.getTextRepresentation();
-                dom.textInput.value = text;
-            } catch (e) { showError(`Render Text: ${e.message || e}`); dom.textInput.value = "Error rendering text."; }
-        }
-    }
-
-    async function renderSequence() {
-        dom.sequenceBitDepthDisplay.textContent = currentActiveBitDepth; 
-        let sequenceToDisplay; // Array of Numbers
-        let displayedLength;
-
-        if (sourceOfChange === 'sequenceInput' || sourceOfChange === 'rawBinaryUpload') {
-            sequenceToDisplay = lastDirectInputSequence ? [...lastDirectInputSequence] : []; 
-            displayedLength = sequenceToDisplay.length;
-        } else {
-            try {
-                displayedLength = await appStateWasm.calculateMinSequenceLength(currentActiveBitDepth);
-                sequenceToDisplay = await appStateWasm.getSequenceRepresentation(displayedLength, currentActiveBitDepth);
-            } catch (e) {
-                showError(`Render Sequence: ${e.message || e}`);
-                sequenceToDisplay = []; 
-                displayedLength = 0;
-                if (displayedLength > 0) { sequenceToDisplay = Array(displayedLength).fill(0); }
+    function createCustomBitDepthUI() {
+        dom.customBitDepthGroupContainer.innerHTML = `
+            <label for="customBitDepthInput">Custom Bit Depth (<span id="customBitDepthMinMaxLabel">${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}</span>):</label>
+            <input type="number" id="customBitDepthInput" min="${CONFIG.MIN_BIT_DEPTH}" max="${CONFIG.MAX_BIT_DEPTH}" value="${currentActiveBitDepth}" size="5">
+            <button id="applyCustomBitDepthButton">Apply</button>
+        `;
+        // Re-add event listeners for dynamically created elements
+        document.getElementById('applyCustomBitDepthButton').addEventListener('click', applyCustomDepthAction);
+        document.getElementById('customBitDepthInput').addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                document.getElementById('applyCustomBitDepthButton').click();
             }
-        }
-
-        if (!Array.isArray(sequenceToDisplay)) {
-            console.warn("renderSequence: sequenceToDisplay from WASM was not an array. Defaulting.", sequenceToDisplay);
-            sequenceToDisplay = [];
-            displayedLength = 0;
-        }
-        
-        dom.sequenceInput.value = sequenceToDisplay.map(n => n.toString()).join(', '); 
-        dom.sequenceCanonicalLengthDisplay.textContent = displayedLength;
-    }
-
-    async function updateAllViews() {
-        showLoader(true);
-        clearError(); 
-        try {
-            await renderCanonicalIndex();
-            await renderText();
-            await renderSequence();
-        } catch (e) { showError(`Update All Views: ${e.message || e}`); }
-        finally { showLoader(false); }
+        });
     }
     
-    dom.canonicalIndexInput.addEventListener('input', debounce(async () => {
-        clearError();
-        const newIndex = safeParseBigInt(dom.canonicalIndexInput.value);
-        if (newIndex !== null) {
-            try {
-                await appStateWasm.setCanonicalIndex(newIndex);
-                sourceOfChange = 'indexInput';
-                lastDirectInputSequence = null;
-                updateAllViews();
-            } catch (e) { showError(`Set CI from Input: ${e.message || e}`); }
-        } else if (dom.canonicalIndexInput.value.trim() !== "") {
-            showError("Invalid BigInt in Canonical Index.");
-            try { dom.canonicalIndexInput.value = (await appStateWasm.getCanonicalIndex()).toString(); } 
-            catch(revertError) { dom.canonicalIndexInput.value = "0"; }
-        }
-    }, CONFIG.DEBOUNCE_DELAY_INPUT));
-
-    dom.textInput.addEventListener('input', debounce(async () => {
-        clearError();
-        try {
-            await appStateWasm.setTextData(dom.textInput.value);
-            sourceOfChange = 'textInput';
-            lastDirectInputSequence = null;
-            updateAllViews();
-        } catch (e) { showError(`Set Text: ${e.message || e}`); }
-    }, CONFIG.DEBOUNCE_DELAY_TEXT_AREA));
-    
-    function handleBitDepthChange(newBitDepth) {
-        if (newBitDepth !== currentActiveBitDepth) {
-            currentActiveBitDepth = newBitDepth;
-            sourceOfChange = 'bitDepthChange'; 
-            lastDirectInputSequence = null;
-            updateSequenceUIDisplaySettings(currentActiveBitDepth);
-            updateAllViews();
-        }
-    }
-
-    dom.sequenceBitDepthSelect.addEventListener('change', () => {
-        clearError();
-        const selectedValue = dom.sequenceBitDepthSelect.value;
-        if (selectedValue === "custom") {
-            dom.customBitDepthGroup.style.display = 'block'; 
-            dom.customBitDepthInput.value = currentActiveBitDepth;
-            dom.customBitDepthInput.focus();
-        } else {
-            dom.customBitDepthGroup.style.display = 'none';
-            handleBitDepthChange(parseInt(selectedValue, 10));
-        }
-    });
-
-    dom.applyCustomBitDepthButton.addEventListener('click', () => {
+    function applyCustomDepthAction() { // Renamed to avoid conflict if dom element is also named this
         clearError();
         const customDepth = getValidatedBitDepthFromCustomInput();
         let matchedPreset = false;
         for (let option of dom.sequenceBitDepthSelect.options) {
             if (parseInt(option.value, 10) === customDepth) {
                 dom.sequenceBitDepthSelect.value = option.value;
-                dom.customBitDepthGroup.style.display = 'none';
+                dom.customBitDepthGroupContainer.innerHTML = ''; // Hide by clearing
                 matchedPreset = true;
                 break;
             }
@@ -284,168 +195,111 @@
             }
         }
         handleBitDepthChange(customDepth);
-    });
+    }
 
-     dom.customBitDepthInput.addEventListener('keypress', (event) => {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            dom.applyCustomBitDepthButton.click();
+
+    async function renderCanonicalIndex() {
+        try {
+            const indexJsBigInt = await appStateWasm.getCanonicalIndex(); 
+            dom.canonicalIndexInput.value = indexJsBigInt.toString();
+        } catch (e) { showError(`Render Index: ${e.message || e}`); }
+    }
+
+    async function renderSequence() {
+        dom.sequenceBitDepthDisplay.textContent = currentActiveBitDepth; 
+        let sequenceToDisplay; 
+        let displayedLength;
+
+        try {
+            // console.log(`[renderSequence] Getting sequence. BitDepth: ${currentActiveBitDepth}`);
+            displayedLength = await appStateWasm.calculateMinSequenceLength(currentActiveBitDepth);
+            // console.log(`[renderSequence] Min length from WASM: ${displayedLength}`);
+            sequenceToDisplay = await appStateWasm.getSequenceRepresentation(displayedLength, currentActiveBitDepth);
+            // console.log(`[renderSequence] RAW Sequence from WASM:`, sequenceToDisplay);
+
+            if (!Array.isArray(sequenceToDisplay)) {
+                console.warn("renderSequence: sequenceToDisplay from WASM was not an array. Defaulting. Was:", sequenceToDisplay);
+                throw new Error("WASM did not return a valid sequence array.");
+            }
+            sequenceToDisplay = sequenceToDisplay.map((item, idx) => {
+                if (typeof item === 'bigint') {
+                    return item;
+                } else {
+                    console.warn(`[renderSequence] WASM returned non-BigInt at index ${idx}:`, item, typeof item);
+                    throw new Error(`WASM returned invalid data type for sequence element at index ${idx}. Expected BigInt.`);
+                }
+            });
+
+        } catch (e) {
+            showError(`Render Sequence: ${e.message || e}`);
+            sequenceToDisplay = []; 
+            displayedLength = 0;
+            if (e.message && e.message.includes("target sequence length of 0") && displayedLength === 0 ) {
+                /* fine for index 0 */
+            } else if (displayedLength > 0) { 
+                sequenceToDisplay = Array(displayedLength).fill(0n);
+            }
+        }
+        
+        const displayText = sequenceToDisplay.map(bi => bi.toString()).join(', '); 
+        dom.sequenceOutputDisplay.value = displayText;
+        dom.sequenceCanonicalLengthDisplay.textContent = displayedLength;
+    }
+
+    async function updateAllViews() {
+        showLoader(true);
+        clearError(); 
+        try {
+            await renderCanonicalIndex();
+            await renderSequence();
+        } catch (e) { showError(`Update All Views: ${e.message || e}`); }
+        finally { showLoader(false); }
+    }
+    
+    dom.canonicalIndexInput.addEventListener('input', debounce(async () => {
+        clearError();
+        const newIndex = safeParseBigInt(dom.canonicalIndexInput.value);
+        if (newIndex !== null) {
+            try {
+                await appStateWasm.setCanonicalIndex(newIndex);     
+                updateAllViews();
+            } catch (e) { showError(`Set CI from Input: ${e.message || e}`); }
+        } else if (dom.canonicalIndexInput.value.trim() !== "") {
+            showError("Invalid BigInt in Canonical Index.");
+            try { 
+              const currentIndex = await appStateWasm.getCanonicalIndex();
+              dom.canonicalIndexInput.value = currentIndex.toString();
+            } catch(revertError) { dom.canonicalIndexInput.value = "0"; }
+        }
+    }, CONFIG.DEBOUNCE_DELAY_INPUT));
+    
+    function handleBitDepthChange(newBitDepth) {
+        if (newBitDepth !== currentActiveBitDepth) {
+            currentActiveBitDepth = newBitDepth;
+            updateSequenceUIDisplaySettings(currentActiveBitDepth);
+            updateAllViews(); 
+        }
+    }
+
+    dom.sequenceBitDepthSelect.addEventListener('change', () => {
+        clearError();
+        const selectedValue = dom.sequenceBitDepthSelect.value;
+        if (selectedValue === "custom") {
+            createCustomBitDepthUI(); // Create and show
+            const customInput = document.getElementById('customBitDepthInput'); // Get it after creation
+            if(customInput) {
+                 customInput.value = currentActiveBitDepth;
+                 customInput.focus();
+            }
+        } else {
+            dom.customBitDepthGroupContainer.innerHTML = ''; // Hide by clearing
+            handleBitDepthChange(parseInt(selectedValue, 10));
         }
     });
-
-    dom.sequenceInput.addEventListener('input', debounce(async () => {
-        clearError();
-        const sequenceStr = dom.sequenceInput.value.trim();
-        const maxVal = (2 ** currentActiveBitDepth) - 1;
-        try {
-            let parsedSequence = []; 
-            if (sequenceStr !== "") {
-                const parts = sequenceStr.split(',');
-                parsedSequence = parts.map((sValRaw, idx) => {
-                    const sVal = sValRaw.trim();
-                    if (sVal === "") return null; 
-                    const num = Number(sVal.replace(/[^0-9]/g, '')); 
-                    if (isNaN(num) || num < 0 || num > maxVal || !Number.isInteger(num)) {
-                        throw new Error(`Invalid value: '${sValRaw}'. Must be integer 0-${maxVal} for ${currentActiveBitDepth}-bit.`);
-                    }
-                    return num; 
-                }).filter(val => val !== null); 
-            }
-            lastDirectInputSequence = parsedSequence.slice();
-            await appStateWasm.setSequenceData(parsedSequence, currentActiveBitDepth); 
-            sourceOfChange = 'sequenceInput';
-            updateAllViews();
-        } catch (e) { showError(`Set Sequence from Input: ${e.message || e}`); }
-    }, CONFIG.DEBOUNCE_DELAY_TEXT_AREA));
-
-    dom.copySequenceButton.addEventListener('click', async () => { /* ... (same as before) ... */ });
-    dom.saveSequenceRawBinaryButton.addEventListener('click', async () => { /* ... (use logic for Number elements up to 32-bit) ... */ });
-    dom.loadSequenceRawBinaryInput.addEventListener('change', async (event) => { /* ... (use logic for Number elements up to 32-bit) ... */ });
     
-    // Placeholder for the copy, save, load logic from previous u32/Number version
-    // Ensure the save/load binary logic matches the u32/Number element type and FIXED_BIT_DEPTH if that was the last working one,
-    // or adapt it to currentActiveBitDepth (1-32 bit range) for Number elements.
-
-    // --- For Save/Load Binary (adapted for Number elements and currentActiveBitDepth up to 32) ---
-    dom.saveSequenceRawBinaryButton.addEventListener('click', async () => {
-        clearError();
-        showLoader(true);
-        try {
-            const currentMinLength = await appStateWasm.calculateMinSequenceLength(currentActiveBitDepth);
-            const sequenceToSave = await appStateWasm.getSequenceRepresentation(currentMinLength, currentActiveBitDepth); // Array<Number>
-
-            const currentCanonicalIndex = await appStateWasm.getCanonicalIndex();
-            if ((!sequenceToSave || sequenceToSave.length === 0) && currentCanonicalIndex !== 0n) {
-                showError("Save Error: Cannot save empty sequence for a non-zero index."); showLoader(false); return;
-            }
-            
-            const numElements = sequenceToSave.length;
-            const bytesPerElement = Math.ceil(currentActiveBitDepth / 8); 
-            
-            await new Promise(resolve => setTimeout(resolve, 10)); 
-
-            const buffer = new ArrayBuffer(numElements * bytesPerElement);
-            const dataView = new DataView(buffer);
-            let offset = 0;
-            for (const val of sequenceToSave) { // val is a Number
-                if (val < 0 || val > ((2**currentActiveBitDepth)-1) ) { throw new Error(`Seq val ${val} out of range.`);}
-                // Write bytes based on bit depth (MSB first)
-                for (let j = bytesPerElement - 1; j >= 0; j--) {
-                    dataView.setUint8(offset++, (val >> (j * 8)) & 0xFF);
-                }
-            }
-            
-            const blob = new Blob([buffer], { type: 'application/octet-stream' });
-            const link = document.createElement('a');
-            link.download = `sequence_N${numElements}_B${currentActiveBitDepth}_${Date.now()}.seqbin`;
-            link.href = URL.createObjectURL(blob); document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
-        } catch (e) { showError(`Save Binary Error: ${e.message || e}`); console.error(e); } 
-        finally { showLoader(false); }
-    });
-
-    dom.loadSequenceRawBinaryInput.addEventListener('change', async (event) => {
-        clearError();
-        const file = event.target.files[0];
-        if (!file) return;
-        showLoader(true);
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                await new Promise(resolve => setTimeout(resolve, 10)); 
-                const arrayBuffer = e.target.result;
-                if (!(arrayBuffer instanceof ArrayBuffer)) { throw new Error("File content not ArrayBuffer."); }
-
-                let expectedN = -1; let expectedB_fromFile = -1;
-                const matchN = file.name.match(/_N(\d+)_/); 
-                const matchB = file.name.match(/_B(\d+)_/);
-                if (matchN && matchN[1]) expectedN = parseInt(matchN[1], 10);
-                if (matchB && matchB[1]) expectedB_fromFile = parseInt(matchB[1], 10);
-
-                if (isNaN(expectedN) || expectedN < 0) { throw new Error("Filename N metadata missing/invalid."); }
-                if (isNaN(expectedB_fromFile) || expectedB_fromFile < CONFIG.MIN_BIT_DEPTH || expectedB_fromFile > CONFIG.MAX_BIT_DEPTH) {
-                    throw new Error(`Filename B metadata invalid. Supported: ${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}. Got: ${expectedB_fromFile}`);
-                }
-                
-                currentActiveBitDepth = expectedB_fromFile;
-                dom.sequenceBitDepthSelect.value = Array.from(dom.sequenceBitDepthSelect.options).some(o => parseInt(o.value) === currentActiveBitDepth) ? currentActiveBitDepth.toString() : "custom";
-                if (dom.sequenceBitDepthSelect.value === "custom") {
-                    dom.customBitDepthGroup.style.display = 'block';
-                    dom.customBitDepthInput.value = currentActiveBitDepth;
-                } else {
-                    dom.customBitDepthGroup.style.display = 'none';
-                }
-                updateSequenceUIDisplaySettings(currentActiveBitDepth);
-                                
-                const bytesPerElement = Math.ceil(currentActiveBitDepth / 8);
-                if (arrayBuffer.byteLength === 0 && expectedN === 0) { /* fine */ }
-                else if (arrayBuffer.byteLength % bytesPerElement !== 0 && expectedN > 0) { // Check if file size allows for full elements
-                     showError(`Load Warning: File size (${arrayBuffer.byteLength} bytes) is not a clean multiple of ${bytesPerElement} bytes for ${currentActiveBitDepth}-bit elements. May truncate last element.`);
-                }
-                const numPossibleFullElements = Math.floor(arrayBuffer.byteLength / bytesPerElement);
-                if (numPossibleFullElements < expectedN && expectedN > 0) {
-                     showError(`Load Warning: File data for ~${numPossibleFullElements} elements, but filename expected N=${expectedN}.`);
-                }
-                
-                const dataView = new DataView(arrayBuffer);
-                const loadedSeq = []; // Array of Numbers
-                const numElementsToRead = Math.min(expectedN, numPossibleFullElements);
-
-                for (let i = 0; i < numElementsToRead; i++) {
-                    const offset = i * bytesPerElement;
-                    let val = 0;
-                    // Read bytes for element (MSB first)
-                    for (let j = 0; j < bytesPerElement; j++) {
-                        val = (val << 8) | dataView.getUint8(offset + j);
-                    }
-                     // If bit_depth is not a multiple of 8, mask off excess MSBs read
-                    if (currentActiveBitDepth % 8 !== 0) {
-                        const bitsInLastByte = currentActiveBitDepth % 8;
-                        const totalBitsForFullBytes = (bytesPerElement -1) * 8;
-                        if (bytesPerElement > 0 && currentActiveBitDepth > totalBitsForFullBytes) {
-                             // This logic is tricky for generic non-byte aligned.
-                             // For simplicity with u32, we assume byte-aligned reads fill lower bits.
-                             // A more precise bit stream reader would be needed for true non-byte aligned.
-                             // The current loop reads full bytes, so val will have leading zeros if bit_depth < bytesPerElement*8
-                        }
-                    }
-                    loadedSeq.push(val);
-                }
-                
-                lastDirectInputSequence = loadedSeq.slice(); 
-                await appStateWasm.setSequenceData(loadedSeq, currentActiveBitDepth); 
-                sourceOfChange = 'rawBinaryUpload';
-                updateAllViews();
-            } catch (e) { showError(`Load Binary Error: ${e.message || e}`); console.error(e); } 
-            finally { showLoader(false); dom.loadSequenceRawBinaryInput.value = ''; }
-        };
-        reader.onerror = () => { showError("File Read Error."); showLoader(false); dom.loadSequenceRawBinaryInput.value = ''; };
-        reader.readAsArrayBuffer(file);
-    });
-    
-    // Copy Sequence to Clipboard (from previous version)
     dom.copySequenceButton.addEventListener('click', async () => {
         clearError();
-        const sequenceString = dom.sequenceInput.value;
+        const sequenceString = dom.sequenceOutputDisplay.value;
         if (navigator.clipboard && navigator.clipboard.writeText) {
             try {
                 await navigator.clipboard.writeText(sequenceString);
@@ -459,20 +313,23 @@
             showError('Clipboard API not available in this browser.');
         }
     });
-
+    
+    dom.saveCanonicalIndexButton.addEventListener('click', async () => { /* ... (same as previous) ... */ });
+    dom.loadCanonicalIndexInput.addEventListener('change', async (event) => { /* ... (same as previous) ... */ });
 
     async function initializeApp() {
         showLoader(true);
-        dom.charSetSizeDisplay.textContent = CHAR_SET_Array.length; // If textInput is present
         updateSequenceUIDisplaySettings(CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH);
-        dom.customBitDepthInput.min = CONFIG.MIN_BIT_DEPTH;
-        dom.customBitDepthInput.max = CONFIG.MAX_BIT_DEPTH;
+        const customInput = document.getElementById('customBitDepthInput'); // Check if exists after UI setup
+        if(customInput) {
+            customInput.min = CONFIG.MIN_BIT_DEPTH;
+            customInput.max = CONFIG.MAX_BIT_DEPTH;
+        }
         currentActiveBitDepth = CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH; 
 
         try {
             await init(); 
             appStateWasm = new AppState(); 
-            sourceOfChange = 'initialLoad';
             await updateAllViews(); 
         } catch (e) {
             showError(`Initialization Error: ${e.message || e.toString()}`);
