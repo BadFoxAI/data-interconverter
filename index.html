@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Interconverter (Core - CI, Seq, Text, JSON Instruct)</title>
-    <!-- NO CSS OR STYLE ATTRIBUTES AS PER DIRECTIVE -->
+    <title>Data Interconverter (Core - CI, Seq, Text, JSON Instruct V1)</title>
+    <!-- NO CSS OR STYLE ATTRIBUTES -->
 </head>
 <body>
 
     <header>
-        <h1>Data Interconverter (Core - CI, Sequence, Text, JSON Instruct)</h1>
+        <h1>Data Interconverter (Core - CI, Sequence, Text, JSON Instruct V1)</h1>
     </header>
 
     <hr>
@@ -31,16 +31,18 @@
                         <br>
                         <small>Non-digits ignored.</small>
                         <br><br>
-                        <button id="saveCanonicalIndexButton">Save Index to File (.txt)</button>
+                        <button id="saveRawCanonicalIndexButton">Save Index as Text (.txt)</button>
                         <br><br>
-                        <label for="loadCanonicalIndexInput">Load Index from File (.txt):</label>
-                        <input type="file" id="loadCanonicalIndexInput" accept=".txt,text/plain">
+                        <label for="loadRawCanonicalIndexInput">Load Index from Text (.txt):</label>
+                        <input type="file" id="loadRawCanonicalIndexInput" accept=".txt,text/plain">
                         <hr>
-                        <h4>Load State from JSON Instructions:</h4>
+                        <h4>JSON Instructions:</h4>
                         <label for="loadJsonInstructionsInput">Load Instructions (.json):</label>
                         <input type="file" id="loadJsonInstructionsInput" accept=".json,application/json">
                         <br>
                         <button id="executeJsonInstructionsButton">Execute JSON Instructions</button>
+                        <br><br>
+                        <button id="saveJsonInstructionsButton">Save Current State as JSON Instructions</button>
                     </td>
 
                     <td> <!-- Column 2: Numerical Sequence -->
@@ -90,8 +92,8 @@
 
     const dom = {
         canonicalIndexInput: document.getElementById('canonicalIndexInput'),
-        saveCanonicalIndexButton: document.getElementById('saveCanonicalIndexButton'),
-        loadCanonicalIndexInput: document.getElementById('loadCanonicalIndexInput'),
+        saveRawCanonicalIndexButton: document.getElementById('saveRawCanonicalIndexButton'), // Renamed
+        loadRawCanonicalIndexInput: document.getElementById('loadRawCanonicalIndexInput'), // Renamed
         
         sequenceBitDepthSelect: document.getElementById('sequenceBitDepthSelect'),
         customBitDepthGroupContainer: document.getElementById('customBitDepthGroupContainer'), 
@@ -104,8 +106,9 @@
         textOutputDisplay: document.getElementById('textOutputDisplay'), 
         textAlphabetDisplay: document.getElementById('textAlphabetDisplay'), 
 
-        loadJsonInstructionsInput: document.getElementById('loadJsonInstructionsInput'), // New
-        executeJsonInstructionsButton: document.getElementById('executeJsonInstructionsButton'), // New
+        loadJsonInstructionsInput: document.getElementById('loadJsonInstructionsInput'), 
+        executeJsonInstructionsButton: document.getElementById('executeJsonInstructionsButton'), 
+        saveJsonInstructionsButton: document.getElementById('saveJsonInstructionsButton'), // New
         
         errorDisplay: document.getElementById('errorDisplay'),
         loadingOverlay: document.getElementById('loadingOverlay'), 
@@ -113,117 +116,86 @@
 
     let appStateWasm; 
     let currentActiveBitDepth = CONFIG.DEFAULT_SEQUENCE_BIT_DEPTH; 
-    let selectedJsonFile = null; // To store the selected JSON file
+    let selectedJsonFile = null; 
 
-    function showError(message) { if (dom.errorDisplay) {dom.errorDisplay.textContent = `ERROR: ${message}`; dom.errorDisplay.hidden = false;} console.error("App Err:", message);}
-    function clearError() { if (dom.errorDisplay) {dom.errorDisplay.textContent = ''; dom.errorDisplay.hidden = true;}}
-    function debounce(func, delay) { let t; return (...a)=>{clearTimeout(t);t=setTimeout(()=>func.apply(this,a),delay);};}
-    function safeParseBigInt(s) { try{const n=String(s).trim().replace(/[^0-9]/g,'');return n===""?0n:BigInt(n);}catch(e){console.error("ParseBigInt fail:",s,e);return null;}}
+    function showError(m){if(dom.errorDisplay){dom.errorDisplay.textContent=`ERROR:${m}`;dom.errorDisplay.hidden=!1;}console.error("AppErr:",m);}
+    function clearError(){if(dom.errorDisplay){dom.errorDisplay.textContent='';dom.errorDisplay.hidden=!0;}}
+    function debounce(f,d){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>f.apply(this,a),d);};}
+    function safeParseBigInt(s){try{const n=String(s).trim().replace(/[^0-9]/g,'');return n===""?0n:BigInt(n);}catch(e){console.error("ParseBigIntFail:",s,e);return null;}}
     
-    function updateUIDisplaySettings() {
-        if(dom.sequenceBitDepthDisplay) dom.sequenceBitDepthDisplay.textContent = currentActiveBitDepth; 
-        const maxSeqVal = (2n ** BigInt(currentActiveBitDepth)) - 1n; 
-        if(dom.sequenceOutputDisplay) dom.sequenceOutputDisplay.placeholder = `Seq ${currentActiveBitDepth}-bit (0 to ${maxSeqVal.toString()})...`;
-        const csi=document.getElementById('customBitDepthInput'); if(csi){csi.min=CONFIG.MIN_BIT_DEPTH;csi.max=CONFIG.MAX_BIT_DEPTH;}
-        const csl=document.getElementById('customBitDepthMinMaxLabel'); if(csl){csl.textContent=`${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}`;}
-        if(dom.textAlphabetDisplay) dom.textAlphabetDisplay.textContent = CONFIG.TEXT_ALPHABET_NAME;
-    }
-    
-    function getValidatedBitDepthFromCustomInput() {const i=document.getElementById('customBitDepthInput');if(!i)return currentActiveBitDepth;let d=parseInt(i.value,10);if(isNaN(d)||d<CONFIG.MIN_BIT_DEPTH||d>CONFIG.MAX_BIT_DEPTH){showError(`Bit depth ${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}. Reverting.`);i.value=currentActiveBitDepth;return currentActiveBitDepth;}return d;}
-    function createCustomBitDepthUI() {if(!dom.customBitDepthGroupContainer)return;dom.customBitDepthGroupContainer.innerHTML=`<label for="customBitDepthInput">Custom (<span id="customBitDepthMinMaxLabel">${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}</span>):</label><input type="number" id="customBitDepthInput" value="${currentActiveBitDepth}" size="3"><button id="applyCustomBitDepthButton">Apply</button>`;const ab=document.getElementById('applyCustomBitDepthButton');if(ab)ab.addEventListener('click',applyCustomDepthAction);const c=document.getElementById('customBitDepthInput');if(c){c.addEventListener('keypress',(e)=>{if(e.key==='Enter'){e.preventDefault();const abi=document.getElementById('applyCustomBitDepthButton');if(abi)abi.click();}});}}
-    function applyCustomDepthAction() {clearError();const d=getValidatedBitDepthFromCustomInput();let m=!1;if(dom.sequenceBitDepthSelect){for(let o of dom.sequenceBitDepthSelect.options){if(o.value!=="custom"&&parseInt(o.value,10)===d){dom.sequenceBitDepthSelect.value=o.value;if(dom.customBitDepthGroupContainer)dom.customBitDepthGroupContainer.innerHTML='';m=!0;break;}}if(!m){if(dom.sequenceBitDepthSelect.value!=="custom"){dom.sequenceBitDepthSelect.value="custom";}if(!document.getElementById('customBitDepthInput')&&dom.customBitDepthGroupContainer){createCustomBitDepthUI();}const i=document.getElementById('customBitDepthInput');if(i)i.value=d;}}handleBitDepthChange(d);}
+    function updateUIDisplaySettings(){if(dom.sequenceBitDepthDisplay)dom.sequenceBitDepthDisplay.textContent=currentActiveBitDepth;const m=(2n**BigInt(currentActiveBitDepth))-1n;if(dom.sequenceOutputDisplay)dom.sequenceOutputDisplay.placeholder=`Seq ${currentActiveBitDepth}-bit (0 to ${m.toString()})...`;const csi=document.getElementById('customBitDepthInput');if(csi){csi.min=CONFIG.MIN_BIT_DEPTH;csi.max=CONFIG.MAX_BIT_DEPTH;}const csl=document.getElementById('customBitDepthMinMaxLabel');if(csl){csl.textContent=`${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}`;}if(dom.textAlphabetDisplay)dom.textAlphabetDisplay.textContent=CONFIG.TEXT_ALPHABET_NAME;}
+    function getValidatedBitDepthFromCustomInput(){const i=document.getElementById('customBitDepthInput');if(!i)return currentActiveBitDepth;let d=parseInt(i.value,10);if(isNaN(d)||d<CONFIG.MIN_BIT_DEPTH||d>CONFIG.MAX_BIT_DEPTH){showError(`Bit depth ${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}. Reverting.`);i.value=currentActiveBitDepth;return currentActiveBitDepth;}return d;}
+    function createCustomBitDepthUI(){if(!dom.customBitDepthGroupContainer)return;dom.customBitDepthGroupContainer.innerHTML=`<label for="customBitDepthInput">Custom (<span id="customBitDepthMinMaxLabel">${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}</span>):</label><input type="number" id="customBitDepthInput" value="${currentActiveBitDepth}" size="3"><button id="applyCustomBitDepthButton">Apply</button>`;const ab=document.getElementById('applyCustomBitDepthButton');if(ab)ab.addEventListener('click',applyCustomDepthAction);const c=document.getElementById('customBitDepthInput');if(c){c.addEventListener('keypress',(e)=>{if(e.key==='Enter'){e.preventDefault();const abi=document.getElementById('applyCustomBitDepthButton');if(abi)abi.click();}});}}
+    function applyCustomDepthAction(){clearError();const d=getValidatedBitDepthFromCustomInput();let m=!1;if(dom.sequenceBitDepthSelect){for(let o of dom.sequenceBitDepthSelect.options){if(o.value!=="custom"&&parseInt(o.value,10)===d){dom.sequenceBitDepthSelect.value=o.value;if(dom.customBitDepthGroupContainer)dom.customBitDepthGroupContainer.innerHTML='';m=!0;break;}}if(!m){if(dom.sequenceBitDepthSelect.value!=="custom"){dom.sequenceBitDepthSelect.value="custom";}if(!document.getElementById('customBitDepthInput')&&dom.customBitDepthGroupContainer){createCustomBitDepthUI();}const i=document.getElementById('customBitDepthInput');if(i)i.value=d;}}handleBitDepthChange(d);}
 
-    async function renderCanonicalIndex() {if(!appStateWasm||!dom.canonicalIndexInput)return;try{dom.canonicalIndexInput.value=(await appStateWasm.getCanonicalIndex()).toString();}catch(e){showError(`Render CI: ${e.message||e}`);}}
-    async function renderSequence() {if(!appStateWasm||!dom.sequenceOutputDisplay||!dom.sequenceCanonicalLengthDisplay)return;updateUIDisplaySettings();let s=[],l=0;try{l=await appStateWasm.calculateMinSequenceLength(currentActiveBitDepth);s=await appStateWasm.getSequenceRepresentation(l,currentActiveBitDepth);if(!Array.isArray(s))throw new Error("WASM: Bad seq array.");s=s.map((i)=>{if(typeof i==='number')return i;throw new Error("WASM: Bad seq element type.");});}catch(e){const c=dom.canonicalIndexInput?safeParseBigInt(dom.canonicalIndexInput.value):0n;if(e.message&&e.message.includes("target sequence length of 0")&&c===0n&&l===0){clearError();s=[];}else{showError(`Render Seq: ${e.message||e}`);}if(l>0&&s.length===0){s=Array(l).fill(0);}}dom.sequenceOutputDisplay.value=s.map(n=>n.toString()).join(', ');dom.sequenceCanonicalLengthDisplay.textContent=l;}
-    async function renderText() {if(!appStateWasm||!dom.textOutputDisplay)return;try{dom.textOutputDisplay.value=await appStateWasm.indexToTextSimple();}catch(e){showError(`Render Txt: ${e.message||e}`);dom.textOutputDisplay.value="";}}
+    async function renderCanonicalIndex(){if(!appStateWasm||!dom.canonicalIndexInput)return;try{dom.canonicalIndexInput.value=(await appStateWasm.getCanonicalIndex()).toString();}catch(e){showError(`RenderCI Err:${e.message||e}`);}}
+    async function renderSequence(){if(!appStateWasm||!dom.sequenceOutputDisplay||!dom.sequenceCanonicalLengthDisplay)return;updateUIDisplaySettings();let s=[],l=0;try{l=await appStateWasm.calculateMinSequenceLength(currentActiveBitDepth);s=await appStateWasm.getSequenceRepresentation(l,currentActiveBitDepth);if(!Array.isArray(s))throw new Error("WASM:BadSeqArr.");s=s.map((i)=>{if(typeof i==='number')return i;throw new Error("WASM:BadSeqElType.");});}catch(e){const c=dom.canonicalIndexInput?safeParseBigInt(dom.canonicalIndexInput.value):0n;if(e.message&&e.message.includes("target sequence length of 0")&&c===0n&&l===0){clearError();s=[];}else{showError(`RenderSeq Err:${e.message||e}`);}if(l>0&&s.length===0){s=Array(l).fill(0);}}dom.sequenceOutputDisplay.value=s.map(n=>n.toString()).join(', ');dom.sequenceCanonicalLengthDisplay.textContent=l;}
+    async function renderText(){if(!appStateWasm||!dom.textOutputDisplay)return;try{dom.textOutputDisplay.value=await appStateWasm.indexToTextSimple();}catch(e){showError(`RenderTxt Err:${e.message||e}`);dom.textOutputDisplay.value="";}}
 
-    async function updateAllViews(src="unknown") {if(!appStateWasm)return;console.log(`UpdateViews from:${src}`);clearError();try{await renderCanonicalIndex();await renderSequence();await renderText();}catch(e){showError(`UpdateViews Err: ${e.message||e}`);}}
+    async function updateAllViews(src="unknown"){if(!appStateWasm)return;console.log(`UpdateViews from:${src}`);clearError();try{await renderCanonicalIndex();await renderSequence();await renderText();}catch(e){showError(`UpdateViews Err:${e.message||e}`);}}
     
-    if(dom.canonicalIndexInput){dom.canonicalIndexInput.addEventListener('input',debounce(async()=>{if(!appStateWasm)return;clearError();const r=dom.canonicalIndexInput.value;const i=safeParseBigInt(r);if(i!==null){try{await appStateWasm.setCanonicalIndex(i);updateAllViews("CI_input");}catch(e){showError(`SetCI Err: ${e.message||e}`);try{if(dom.canonicalIndexInput)dom.canonicalIndexInput.value=(await appStateWasm.getCanonicalIndex()).toString();}catch(_){if(dom.canonicalIndexInput)dom.canonicalIndexInput.value="0";}}}else if(r.trim()!==""&&!/^[0-9]*$/.test(r.trim().replace(/[^0-9]/g,''))){showError("Invalid CI chars.");try{if(dom.canonicalIndexInput)dom.canonicalIndexInput.value=(await appStateWasm.getCanonicalIndex()).toString();}catch(_){if(dom.canonicalIndexInput)dom.canonicalIndexInput.value="0";}}else if(r.trim()===""){try{await appStateWasm.setCanonicalIndex(0n);updateAllViews("CI_empty");}catch(e){showError(`SetCI empty: ${e.message||e}`);}}},CONFIG.DEBOUNCE_DELAY_INPUT));}
-    if(dom.textInput){dom.textInput.addEventListener('input',debounce(async()=>{if(!appStateWasm)return;clearError();const t=dom.textInput.value;try{await appStateWasm.setIndexFromTextSimple(t);updateAllViews("text_input");}catch(e){showError(`SetCI from Txt: ${e.message||e}`);try{if(dom.textInput){dom.textInput.value=await appStateWasm.indexToTextSimple();}}catch(_){}}},CONFIG.DEBOUNCE_DELAY_INPUT));}
+    if(dom.canonicalIndexInput){dom.canonicalIndexInput.addEventListener('input',debounce(async()=>{if(!appStateWasm)return;clearError();const r=dom.canonicalIndexInput.value;const i=safeParseBigInt(r);if(i!==null){try{await appStateWasm.setCanonicalIndex(i);updateAllViews("CI_input");}catch(e){showError(`SetCI Err:${e.message||e}`);try{if(dom.canonicalIndexInput)dom.canonicalIndexInput.value=(await appStateWasm.getCanonicalIndex()).toString();}catch(_){if(dom.canonicalIndexInput)dom.canonicalIndexInput.value="0";}}}else if(r.trim()!==""&&!/^[0-9]*$/.test(r.trim().replace(/[^0-9]/g,''))){showError("Invalid CI chars.");try{if(dom.canonicalIndexInput)dom.canonicalIndexInput.value=(await appStateWasm.getCanonicalIndex()).toString();}catch(_){if(dom.canonicalIndexInput)dom.canonicalIndexInput.value="0";}}else if(r.trim()===""){try{await appStateWasm.setCanonicalIndex(0n);updateAllViews("CI_empty");}catch(e){showError(`SetCI empty:${e.message||e}`);}}},CONFIG.DEBOUNCE_DELAY_INPUT));}
+    if(dom.textInput){dom.textInput.addEventListener('input',debounce(async()=>{if(!appStateWasm)return;clearError();const t=dom.textInput.value;try{await appStateWasm.setIndexFromTextSimple(t);updateAllViews("text_input");}catch(e){showError(`SetCI fromTxt:${e.message||e}`);try{if(dom.textInput){dom.textInput.value=await appStateWasm.indexToTextSimple();}}catch(_){}}},CONFIG.DEBOUNCE_DELAY_INPUT));}
     if(dom.sequenceBitDepthSelect){dom.sequenceBitDepthSelect.addEventListener('change',()=>{clearError();const s=dom.sequenceBitDepthSelect.value;if(s==="custom"){if(!document.getElementById('customBitDepthInput')&&dom.customBitDepthGroupContainer){createCustomBitDepthUI();}const i=document.getElementById('customBitDepthInput');if(i){i.value=currentActiveBitDepth;i.focus();}}else{if(dom.customBitDepthGroupContainer)dom.customBitDepthGroupContainer.innerHTML='';handleBitDepthChange(parseInt(s,10));}}); }
-    function handleBitDepthChange(n){if(isNaN(n)||n<CONFIG.MIN_BIT_DEPTH||n>CONFIG.MAX_BIT_DEPTH){showError(`Invalid bit depth:${n}. Must be ${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}.`);if(dom.sequenceBitDepthSelect){let f=!1;for(let o of dom.sequenceBitDepthSelect.options){if(o.value!=="custom"&&parseInt(o.value)===currentActiveBitDepth){dom.sequenceBitDepthSelect.value=o.value;if(dom.customBitDepthGroupContainer&&document.getElementById('customBitDepthInput'))dom.customBitDepthGroupContainer.innerHTML='';f=!0;break;}}if(!f){dom.sequenceBitDepthSelect.value="custom";if(dom.customBitDepthGroupContainer&&!document.getElementById('customBitDepthInput'))createCustomBitDepthUI();const i=document.getElementById('customBitDepthInput');if(i)i.value=currentActiveBitDepth;}}}if(n!==currentActiveBitDepth){currentActiveBitDepth=n;updateAllViews("bitDepthChange");}}
+    function handleBitDepthChange(n){if(isNaN(n)||n<CONFIG.MIN_BIT_DEPTH||n>CONFIG.MAX_BIT_DEPTH){showError(`InvalidBitDepth:${n}.Range ${CONFIG.MIN_BIT_DEPTH}-${CONFIG.MAX_BIT_DEPTH}.`);if(dom.sequenceBitDepthSelect){let f=!1;for(let o of dom.sequenceBitDepthSelect.options){if(o.value!=="custom"&&parseInt(o.value)===currentActiveBitDepth){dom.sequenceBitDepthSelect.value=o.value;if(dom.customBitDepthGroupContainer&&document.getElementById('customBitDepthInput'))dom.customBitDepthGroupContainer.innerHTML='';f=!0;break;}}if(!f){dom.sequenceBitDepthSelect.value="custom";if(dom.customBitDepthGroupContainer&&!document.getElementById('customBitDepthInput'))createCustomBitDepthUI();const i=document.getElementById('customBitDepthInput');if(i)i.value=currentActiveBitDepth;}}}if(n!==currentActiveBitDepth){currentActiveBitDepth=n;updateAllViews("bitDepthChange");}}
     
-    if(dom.copySequenceButton)dom.copySequenceButton.addEventListener('click',async()=>{clearError();const s=dom.sequenceOutputDisplay.value;if(!s&&dom.sequenceCanonicalLengthDisplay.textContent==="0"){}else if(!s){showError('No seq data.');return;}if(navigator.clipboard&&navigator.clipboard.writeText){try{await navigator.clipboard.writeText(s);const o=dom.copySequenceButton.textContent;dom.copySequenceButton.textContent='Copied!';setTimeout(()=>{dom.copySequenceButton.textContent=o;},1500);}catch(e){showError('CopyFail:'+e.message);}}else{showError('Clipboard n/a.');}});
-    if(dom.saveCanonicalIndexButton)dom.saveCanonicalIndexButton.addEventListener('click',async()=>{if(!appStateWasm){showError("App not loaded.");return;}clearError();try{const i=(await appStateWasm.getCanonicalIndex()).toString();const b=new Blob([i],{type:'text/plain;charset=utf-8'});const l=document.createElement('a');l.href=URL.createObjectURL(b);l.download=`ci_${Date.now()}.txt`;document.body.appendChild(l);l.click();document.body.removeChild(l);URL.revokeObjectURL(l.href);}catch(e){showError('SaveFail:'+e.message);}});
-    if(dom.loadCanonicalIndexInput)dom.loadCanonicalIndexInput.addEventListener('change',async(event)=>{if(!appStateWasm){showError("App not loaded.");event.target.value=null;return;}clearError();const f=event.target.files[0];if(!f){event.target.value=null;return;}const r=new FileReader();r.onload=async(e)=>{try{const t=e.target.result;const i=safeParseBigInt(t);if(i===null){throw new Error("Bad BigInt in file.");}await appStateWasm.setCanonicalIndex(i);updateAllViews("loadFile");}catch(err){showError('LoadFail:'+err.message);try{if(dom.canonicalIndexInput)dom.canonicalIndexInput.value=(await appStateWasm.getCanonicalIndex()).toString();}catch(_){}}finally{event.target.value=null;}};r.onerror=()=>{showError('FileReadErr.');event.target.value=null;};r.readAsText(f);});
+    // Raw CI Save/Load
+    if(dom.saveRawCanonicalIndexButton)dom.saveRawCanonicalIndexButton.addEventListener('click',async()=>{if(!appStateWasm){showError("App not loaded.");return;}clearError();try{const i=(await appStateWasm.getCanonicalIndex()).toString();const b=new Blob([i],{type:'text/plain;charset=utf-8'});const l=document.createElement('a');l.href=URL.createObjectURL(b);l.download=`ci_raw_${Date.now()}.txt`;document.body.appendChild(l);l.click();document.body.removeChild(l);URL.revokeObjectURL(l.href);}catch(e){showError('SaveFail:'+e.message);}});
+    if(dom.loadRawCanonicalIndexInput)dom.loadRawCanonicalIndexInput.addEventListener('change',async(event)=>{if(!appStateWasm){showError("App not loaded.");event.target.value=null;return;}clearError();const f=event.target.files[0];if(!f){event.target.value=null;return;}const r=new FileReader();r.onload=async(e)=>{try{const t=e.target.result;const i=safeParseBigInt(t);if(i===null){throw new Error("Bad BigInt in file.");}await appStateWasm.setCanonicalIndex(i);updateAllViews("loadRawFile");}catch(err){showError('LoadFail:'+err.message);try{if(dom.canonicalIndexInput)dom.canonicalIndexInput.value=(await appStateWasm.getCanonicalIndex()).toString();}catch(_){}}finally{event.target.value=null;}};r.onerror=()=>{showError('FileReadErr.');event.target.value=null;};r.readAsText(f);});
+    if(dom.copySequenceButton)dom.copySequenceButton.addEventListener('click',async()=>{clearError();const s=dom.sequenceOutputDisplay.value;if(!s&&dom.sequenceCanonicalLengthDisplay.textContent==="0"){}else if(!s){showError('No seq data.');return;}if(navigator.clipboard&&navigator.clipboard.writeText){try{await navigator.clipboard.writeText(s);const o=dom.copySequenceButton.textContent;dom.copySequenceButton.textContent='Copied!';setTimeout(()=>{dom.copySequenceButton.textContent='Copy Sequence';},1500);}catch(e){showError('CopyFail:'+e.message);}}else{showError('Clipboard n/a.');}});
 
-    // --- New JSON Instruction Handling ---
+    // JSON Instruction Handling
     if (dom.loadJsonInstructionsInput) {
         dom.loadJsonInstructionsInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
-            if (file) {
-                selectedJsonFile = file; // Store the file reference
-                // We don't process it immediately, wait for the button click
-                if (dom.executeJsonInstructionsButton) {
-                    dom.executeJsonInstructionsButton.textContent = `Execute Instructions from ${file.name}`;
-                }
-            } else {
-                selectedJsonFile = null;
-                if (dom.executeJsonInstructionsButton) {
-                    dom.executeJsonInstructionsButton.textContent = `Execute JSON Instructions`;
-                }
-            }
-            event.target.value = null; // Allow re-selecting the same file
+            if(file){selectedJsonFile=file;if(dom.executeJsonInstructionsButton)dom.executeJsonInstructionsButton.textContent=`Execute ${file.name.substring(0,20)}...`;}
+            else{selectedJsonFile=null;if(dom.executeJsonInstructionsButton)dom.executeJsonInstructionsButton.textContent=`Execute JSON Instructions`;}
+            event.target.value=null; 
         });
     }
-
     if (dom.executeJsonInstructionsButton) {
         dom.executeJsonInstructionsButton.addEventListener('click', async () => {
-            if (!appStateWasm) { showError("WASM module not ready."); return; }
-            if (!selectedJsonFile) { showError("No JSON instruction file selected."); return; }
-            
-            clearError();
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const jsonString = e.target.result;
-                try {
-                    console.log("Executing JSON:", jsonString);
-                    const resultingCI_JS = await appStateWasm.executeJsonInstructionsToCI(jsonString);
-                    await appStateWasm.setCanonicalIndex(resultingCI_JS); // This must be JsBigInt
-                    updateAllViews("json_instructions_executed");
-                    if (dom.executeJsonInstructionsButton) { // Reset button text after execution
-                         dom.executeJsonInstructionsButton.textContent = `Execute JSON Instructions`;
-                    }
-                    selectedJsonFile = null; // Clear selected file
-                } catch (err) {
-                    showError(`Error executing JSON instructions: ${err.message || err}`);
-                    console.error("JSON Execution Error Details:", err);
-                }
-            };
-            reader.onerror = () => {
-                showError("Error reading JSON file.");
-            };
-            reader.readAsText(selectedJsonFile);
+            if(!appStateWasm){showError("WASM not ready.");return;}if(!selectedJsonFile){showError("No JSON file selected.");return;}clearError();
+            const reader=new FileReader();
+            reader.onload=async(e)=>{const jsonStr=e.target.result;try{console.log("Executing JSON:",jsonStr);const ci=await appStateWasm.executeJsonInstructionsToCI(jsonStr);await appStateWasm.setCanonicalIndex(ci);updateAllViews("json_executed");if(dom.executeJsonInstructionsButton)dom.executeJsonInstructionsButton.textContent=`Execute JSON Instructions`;selectedJsonFile=null;}catch(err){showError(`JSON Exec Err: ${err.message||err}`);console.error("JSON Exec Details:",err);}};
+            reader.onerror=()=>{showError("JSON Read Err.");};reader.readAsText(selectedJsonFile);
         });
     }
-    // --- End New JSON Instruction Handling ---
+    // New: Save JSON Instructions Button Handler
+    if (dom.saveJsonInstructionsButton) {
+        dom.saveJsonInstructionsButton.addEventListener('click', async () => {
+            if (!appStateWasm) { showError("WASM module not ready."); return; }
+            clearError();
+            try {
+                // For V0, the strategy string is ignored by Rust, but we pass something.
+                const jsonInstructionsString = await appStateWasm.generateJsonInstructionsForCurrentCI("V0_LITERAL_BIGINT");
+                
+                const blob = new Blob([jsonInstructionsString], { type: 'application/json;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `ci_instructions_${Date.now()}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            } catch (err) {
+                showError(`Error generating/saving JSON instructions: ${err.message || err}`);
+                console.error("Save JSON Instructions Error Details:", err);
+            }
+        });
+    }
 
     async function initializeApp() {
         updateUIDisplaySettings(); 
         try {
-            const initPromise = init();
-            console.log("Attempting to initialize WASM, promise is:", initPromise); 
-            await initPromise;
-            console.log("initializeApp: init() resolved."); 
-            
-            appStateWasm = new AppState(); 
-            console.log("initializeApp: AppState instantiated."); 
-            
-            await appStateWasm.setCanonicalIndex(0n); 
-            console.log("initializeApp: Initial setCI done."); 
-            
-            await updateAllViews("initializeApp"); 
-            console.log("initializeApp: Initial updateAllViews done."); 
-
-        } catch (e) {
-            console.error("initializeApp: CRITICAL ERROR:", e); 
-            showError(`Fatal Init Error: ${e.message||e}. Check console.`);
-        } 
+            const initPromise = init(); console.log("Init WASM promise:", initPromise); await initPromise; console.log("initializeApp: init() resolved."); 
+            appStateWasm = new AppState(); console.log("initializeApp: AppState instantiated."); 
+            await appStateWasm.setCanonicalIndex(0n); console.log("initializeApp: Initial setCI done."); 
+            await updateAllViews("initializeApp"); console.log("initializeApp: Initial updateAllViews done."); 
+        } catch (e) { console.error("initializeApp: CRITICAL ERROR:", e); showError(`Fatal Init Error: ${e.message||e}. Check console.`);} 
         if (dom.loadingOverlay) dom.loadingOverlay.hidden = true;
         console.log("initializeApp: End. UI should be interactive.");
     }
-
     window.addEventListener('load', initializeApp);
 </script>
 
