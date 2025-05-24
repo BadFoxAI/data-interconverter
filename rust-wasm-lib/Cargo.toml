@@ -1,0 +1,53 @@
+[package]
+name = "data_interconverter_wasm"
+version = "0.1.1" # Bumped version slightly
+edition = "2021"
+authors = ["Your Name <youremail@example.com>"] # TODO: Replace with your actual author info
+description = "WASM core for a data interconverter. Handles an arbitrary-precision Canonical Index and its conversion to numerical sequences (u32 elements, 1-32 bit depth)."
+# repository = "https://github.com/yourusername/your-repo-name" # Optional: Add your repository URL
+# license = "MIT OR Apache-2.0" # Optional: Choose a license if you wish
+
+[lib]
+crate-type = ["cdylib", "rlib"] # cdylib for WASM, rlib for Rust tests/benchmarks
+
+[dependencies]
+# Core WASM bindings for interfacing with JavaScript.
+# Using the older specified versions for toolchain compatibility.
+wasm-bindgen = "0.2.69"
+js-sys = "0.3.45"       # Provides JavaScript primitive types and objects (e.g., JsBigInt).
+web-sys = { version = "0.3.45", features = [
+    'console'           # Enables `console.log` etc. from Rust via `web_sys::console`.
+] }
+
+# Arbitrary-precision integer arithmetic.
+num-bigint = "0.4" # The "serde" feature for num-bigint itself is not strictly needed here
+                   # if only AppState has BigInt and is not directly (de)serialized as a whole
+                   # with Serde features that would require it on BigInt.
+num-traits = "0.2" # Common numeric traits (Zero, One, Pow, ToPrimitive, etc.).
+
+# Error handling within Rust internal functions (AnyhowResult).
+anyhow = "1.0"
+
+# Enhances panic messages in the browser console for easier debugging. Optional.
+console_error_panic_hook = { version = "0.1.7", optional = true }
+
+# Serialization framework and its bridge to wasm-bindgen JsValue.
+serde = { version = "1.0", features = ["derive"] } # "derive" for potential custom Rust structs serialization.
+serde-wasm-bindgen = "0.4.5" # Essential for serializing Rust data (like Vec<u32>) to JsValue for JavaScript.
+
+[dev-dependencies]
+# Support for writing unit tests for WASM code.
+wasm-bindgen-test = "0.3.26" # Ensure this aligns with your wasm-bindgen version if issues arise.
+
+[features]
+# Default features to enable. `console_error_panic_hook` is useful for development.
+default = ["console_error_panic_hook"]
+
+# Optional: Profile for release builds (wasm-pack uses --release by default).
+# Optimizing for size ('s' or 'z') is common for web deployment.
+# `lto = true` (Link-Time Optimization) can also reduce size and improve performance.
+# [profile.release]
+# opt-level = 's' # Optimize for size. 'z' is more aggressive but may increase compile times.
+# lto = true
+# strip = "symbols" # Remove debugging symbols from the final WASM to further reduce size.
+# codegen-units = 1 # Can sometimes improve optimization at the cost of compile time.
